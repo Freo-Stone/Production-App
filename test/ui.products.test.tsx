@@ -4,6 +4,7 @@ import { act } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Product } from '@/core/types';
 import { db, seedIfEmpty } from '@/data/db';
+import { signInForTests } from './support/who';
 import { Products } from '@/screens/Products';
 import { cellTexts, click, headerNamed, render, rows, type Rendered } from './support/render';
 
@@ -32,6 +33,7 @@ function product(code: string, over: Partial<Product> = {}): Product {
 }
 
 async function reset(): Promise<void> {
+  signInForTests();
   await Promise.all([
     db.products.clear(),
     db.events.clear(),

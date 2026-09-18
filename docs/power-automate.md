@@ -25,11 +25,13 @@ exports into a SharePoint or OneDrive folder by itself.
 connector, but it needs an Azure app registration to read SharePoint, which is
 more setup than the flow is worth unless you already have one.
 
-> Note on the app today: it reads exports from files you choose on the device
-> (Sources → Import). The device token screen exists (`/#/settings`); the pull
-> that reads `exports/` from the repository on a schedule is step 3 of the working
-> order in `TASKS.md`. Until it lands, the mirror gives you one current copy in one
-> known place rather than a live feed.
+> Both halves are working now: the mirror puts a current copy in `exports/`, and
+> any device that is open, online and holding the token reads them and imports
+> whichever changed — see `docs/exports.md`. The manual tray on **Data sources**
+> is still there for a file sitting on somebody's laptop.
+>
+> What the mirror cannot do is make a closed laptop look. The newest numbers wait
+> in the repository until an app is opened.
 
 ## Power Automate flow
 

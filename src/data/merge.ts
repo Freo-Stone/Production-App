@@ -10,7 +10,16 @@
  * reused by the restore-from-commit screen.
  */
 import { DEFAULT_SETTINGS } from '@/core/defaults';
-import type { Batch, EventLog, Line, PlanItem, Product, Settings } from '@/core/types';
+import type {
+  Account,
+  Batch,
+  DeviceRecord,
+  EventLog,
+  Line,
+  PlanItem,
+  Product,
+  Settings,
+} from '@/core/types';
 // ViewRecord lives next to the Dexie table it keys. `import type` is erased by
 // the compiler, so this module still has no runtime dependency on Dexie.
 import type { FreoDB, ViewRecord } from '@/data/db';
@@ -29,12 +38,51 @@ export interface StateDocument {
   events: EventLog[];
   planItems: PlanItem[];
   views: ViewRecord[];
+  /** Who may sign in, and the digest their passcode hashes to. Shared on purpose:
+   *  the owner changes a person on one device and every device knows by next sync. */
+  users: Account[];
+  /** Machines that have been used to sign in, so the owner can see and revoke them. */
+  devices: DeviceRecord[];
   settings: Settings;
   /** Device that produced this revision — provenance for the audit trail. */
   device: string;
 }
 
-export type CollectionName = 'products' | 'lines' | 'batches' | 'events' | 'planItems' | 'views' | 'settings';
+export type CollectionName =
+  | 'products'
+  | 'lines'
+  | 'batches'
+  | 'events'
+  | 'planItems'
+  | 'views'
+  | 'users'
+  | 'devices'
+  | 'settings';
+
+/**
+ * A document read out of the repository may predate any collection added since it
+ * was written — the file in the shop's repository today has no `users` in it at all.
+ * Every merge and every write-back goes through here, so a missing array reads as
+ * empty instead of throwing halfway through a sync cycle and leaving the device
+ * believing it had synced.
+ */
+export function withCollections(doc: Partial<StateDocument>): StateDocument {
+  const list = <T,>(value: readonly T[] | undefined): T[] => (Array.isArray(value) ? [...value] : []);
+  return {
+    version: STATE_DOC_VERSION,
+    updatedAt: doc.updatedAt ?? 0,
+    products: list(doc.products),
+    lines: list(doc.lines),
+    batches: list(doc.batches),
+    events: list(doc.events),
+    planItems: list(doc.planItems),
+    views: list(doc.views),
+    users: list(doc.users),
+    devices: list(doc.devices),
+    settings: doc.settings ?? structuredClone(DEFAULT_SETTINGS),
+    device: doc.device ?? '',
+  };
+}
 
 /** Namespace a dirty key by collection, so ids that repeat across tables
  *  (batches and plan items are both uuids) stay distinct in the queue. */
@@ -146,23 +194,32 @@ export function sortForWrite(doc: StateDocument): StateDocument {
     events: [...doc.events].sort((a, b) => a.at - b.at || cmp(a.id, b.id)),
     planItems: [...doc.planItems].sort((a, b) => cmp(a.id, b.id)),
     views: [...doc.views].sort((a, b) => cmp(a.key, b.key)),
+    users: [...doc.users].sort((a, b) => cmp(a.id, b.id)),
+    devices: [...doc.devices].sort((a, b) => cmp(a.id, b.id)),
   };
 }
 
 export function mergeDocuments(local: StateDocument, remote: StateDocument): StateDocument {
+  const a = withCollections(local);
+  const b = withCollections(remote);
   return sortForWrite({
     version: STATE_DOC_VERSION,
-    updatedAt: Math.max(local.updatedAt, remote.updatedAt),
-    products: mergeList(local.products, remote.products, byCode),
-    lines: mergeList(local.lines, remote.lines, byId),
-    batches: mergeList(local.batches, remote.batches, byId),
-    events: mergeEvents(local.events, remote.events),
+    updatedAt: Math.max(a.updatedAt, b.updatedAt),
+    products: mergeList(a.products, b.products, byCode),
+    lines: mergeList(a.lines, b.lines, byId),
+    batches: mergeList(a.batches, b.batches, byId),
+    events: mergeEvents(a.events, b.events),
     // A view key already carries its owner (`screen|device`), so two users
     // editing their own views never contend for the same record.
-    views: mergeList(local.views, remote.views, byKey),
-    planItems: mergeList(local.planItems, remote.planItems, byId),
-    settings: mergeSettings(local.settings, remote.settings, local.updatedAt, remote.updatedAt),
-    device: local.device,
+    views: mergeList(a.views, b.views, byKey),
+    planItems: mergeList(a.planItems, b.planItems, byId),
+    // Accounts merge by id like anything else. Two owners created at the same time is
+    // the one thing last-write-wins cannot settle on its own, and `demoteExtraOwners`
+    // in src/data/accounts.ts does that deterministically on every device.
+    users: mergeList(a.users, b.users, byId),
+    devices: mergeList(a.devices, b.devices, byId),
+    settings: mergeSettings(a.settings, b.settings, a.updatedAt, b.updatedAt),
+    device: a.device,
   });
 }
 
@@ -176,6 +233,8 @@ export function emptyDocument(device: string, now = 0): StateDocument {
     events: [],
     planItems: [],
     views: [],
+    users: [],
+    devices: [],
     settings: structuredClone(DEFAULT_SETTINGS),
     device,
   };
@@ -196,6 +255,8 @@ export function latestTouch(doc: StateDocument): number {
     maxStamp(doc.events),
     maxStamp(doc.planItems),
     maxStamp(doc.views),
+    maxStamp(doc.users),
+    maxStamp(doc.devices),
   );
 }
 
@@ -213,6 +274,8 @@ export function countPending(doc: StateDocument, watermark: number): number {
     doc.events,
     doc.planItems,
     doc.views,
+    doc.users,
+    doc.devices,
   ];
   let n = 0;
   for (const list of lists) for (const row of list) if ((row.updatedAt ?? row.at ?? 0) > watermark) n += 1;
@@ -290,6 +353,10 @@ export function reconcileLocal(
     batches: protect('batches', local.batches, merged.batches, byId),
     planItems: protect('planItems', local.planItems, merged.planItems, byId),
     views: protect('views', local.views, merged.views, byKey),
+    // A local account the shared document has never seen has to survive the pull:
+    // losing one would sign someone out of work they had just been given.
+    users: protect('users', local.users, merged.users, byId),
+    devices: protect('devices', local.devices, merged.devices, byId),
   };
   return { doc: sortForWrite(doc), restored, defended, overwritten };
 }
@@ -313,6 +380,8 @@ export interface SyncDatabase {
   events: TableLike<EventLog>;
   planItems: TableLike<PlanItem>;
   views: TableLike<ViewRecord>;
+  users: TableLike<Account>;
+  devices: TableLike<DeviceRecord>;
   meta: {
     get(key: string): Promise<{ key: string; value: unknown } | undefined>;
     put(row: { key: string; value: unknown }): Promise<unknown>;
@@ -331,13 +400,15 @@ export async function documentFromDb(
   dexie: SyncDatabase,
   opts: { device: string; now?: number },
 ): Promise<StateDocument> {
-  const [products, lines, batches, events, planItems, views, row] = await Promise.all([
+  const [products, lines, batches, events, planItems, views, users, devices, row] = await Promise.all([
     dexie.products.toArray(),
     dexie.lines.toArray(),
     dexie.batches.toArray(),
     dexie.events.toArray(),
     dexie.planItems.toArray(),
     dexie.views.toArray(),
+    dexie.users.toArray(),
+    dexie.devices.toArray(),
     dexie.meta.get(SETTINGS_KEY),
   ]);
   const stored = (row?.value ?? {}) as unknown as Settings;
@@ -353,6 +424,8 @@ export async function documentFromDb(
       maxStamp(batches),
       maxStamp(planItems),
       maxStamp(views),
+      maxStamp(users),
+      maxStamp(devices),
     ),
     products,
     lines,
@@ -360,6 +433,8 @@ export async function documentFromDb(
     events: sortEvents(events),
     planItems,
     views,
+    users,
+    devices,
     settings,
     device: opts.device,
   };
@@ -372,12 +447,15 @@ export async function documentFromDb(
  * sync never removes anything — resurrecting a view is recoverable, losing one
  * is not.
  */
-export async function applyDocumentToDb(dexie: SyncDatabase, doc: StateDocument): Promise<void> {
+export async function applyDocumentToDb(dexie: SyncDatabase, incoming: StateDocument): Promise<void> {
+  const doc = withCollections(incoming);
   await dexie.products.bulkPut(doc.products);
   await dexie.lines.bulkPut(doc.lines);
   await dexie.batches.bulkPut(doc.batches);
   await dexie.events.bulkPut(doc.events);
   await dexie.planItems.bulkPut(doc.planItems);
   await dexie.views.bulkPut(doc.views);
+  await dexie.users.bulkPut(doc.users);
+  await dexie.devices.bulkPut(doc.devices);
   await dexie.meta.put({ key: SETTINGS_KEY, value: doc.settings });
 }

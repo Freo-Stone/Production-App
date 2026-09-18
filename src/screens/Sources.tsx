@@ -1,15 +1,18 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useCan } from '@/app/session';
 import { useView } from '@/app/useView';
 import { formatNumber } from '@/core/format';
 import { defaultView } from '@/core/defaults';
 import type { JobRow, StockRow } from '@/core/types';
 import { getSettings, latestJobsSnapshot, latestStockSnapshot, saveSettings } from '@/data/db';
+import { readExportStates } from '@/data/exportSync';
 import { commitImport, type ImportCommit } from '@/data/importFlow';
 import { parseExport, type ImportResult } from '@/lib/myob/importFile';
 import { DataTable, type ColumnDef } from '@/ui/DataTable';
 import { ViewToolbar } from '@/ui/DataTable/ViewToolbar';
 import { Icon } from '@/ui/Icon';
+import { AutoImportCard } from './SourcesAutoImport';
 import {
   Button,
   Card,
@@ -141,6 +144,8 @@ export function Sources() {
   const stock = useLiveQuery(() => latestStockSnapshot(), []);
   const jobs = useLiveQuery(() => latestJobsSnapshot(), []);
   const settings = useLiveQuery(() => getSettings(), []);
+  const exportStates = useLiveQuery(() => readExportStates(), []);
+  const canImport = useCan('sources.import');
 
   const stockView = useView('sources.stock', defaultView('sources.stock', STOCK_COLUMNS.map((c) => c.key)));
   const jobsView = useView('sources.jobs', defaultView('sources.jobs', JOB_COLUMNS.map((c) => c.key)));
@@ -262,8 +267,11 @@ export function Sources() {
         />
       </div>
 
+      {/* ── Automatic import ───────────────────────────────────────────────── */}
+      {settings && exportStates ? <AutoImportCard settings={settings} states={exportStates} canWrite={canImport} /> : null}
+
       {/* ── Import ─────────────────────────────────────────────────────────── */}
-      <Card title="Import MYOB exports" subtitle="Files are read in the browser; nothing is uploaded.">
+      <Card title="Import by hand" subtitle="Files are read in the browser; nothing is uploaded.">
         <div className="flex flex-col gap-2">
           <DropZone onFiles={(files) => void handleFiles(files)} busy={busy} />
 

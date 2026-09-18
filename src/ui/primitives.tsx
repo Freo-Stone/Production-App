@@ -696,8 +696,17 @@ export function toast(tone: Tone, title: string, body?: string, action?: ToastIt
 export function Toaster() {
   const items = useToasts((s) => s.items);
   const dismiss = useToasts((s) => s.dismiss);
+  // Toasts are the app's "something happened" channel, and a channel nobody
+  // announces is a channel a screen-reader user does not have. A live region
+  // rather than role="status" on purpose: screens already use that role for their
+  // own inline messages, and two status regions on one page mean an assertion —
+  // or a person — cannot tell which one is speaking.
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-16 z-[60] flex flex-col items-center gap-1.5 px-2 sm:bottom-4 sm:right-4 sm:left-auto sm:items-end">
+    <div
+      data-toaster
+      aria-live="polite"
+      className="pointer-events-none fixed inset-x-0 bottom-16 z-[60] flex flex-col items-center gap-1.5 px-2 sm:bottom-4 sm:right-4 sm:left-auto sm:items-end"
+    >
       <AnimatePresence>
         {items.map((t) => (
           <motion.div

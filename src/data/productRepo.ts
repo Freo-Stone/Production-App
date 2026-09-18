@@ -3,6 +3,7 @@ import { parseNumberInput } from '@/core/format';
 import type { Product, ProductRoute } from '@/core/types';
 import { db } from '@/data/db';
 import { logEvent } from '@/data/events';
+import { assertCan } from '@/data/principal';
 
 /**
  * Product settings writes.
@@ -42,6 +43,9 @@ export const UNIT_OPTIONS: Array<{ value: string; label: string }> = [
 
 /** One field edit. Returns the fields that actually changed, for the audit line. */
 export async function patchProduct(code: string, patch: ProductPatch): Promise<Product | null> {
+  // Gated here, not only in the screen: a disabled input stops the person who forgot,
+  // not the person who did not.
+  assertCan('products.edit');
   // Read and write inside one transaction. Two edits a moment apart — target then
   // tray yield, say — otherwise both read the same original row and the one that
   // commits second quietly undoes the first.
@@ -69,6 +73,7 @@ export async function bulkPatchProducts(
   codes: string[],
   patch: ProductPatch,
 ): Promise<{ updated: number }> {
+  assertCan('products.edit');
   const now = Date.now();
   let updated = 0;
   await db.transaction('rw', db.products, db.events, async () => {
@@ -110,6 +115,8 @@ export async function moveProductInList(
   targetIndex: number,
   list: Product[],
 ): Promise<void> {
+  // The order of this list is how the shop reads the board, so it is a maker's edit.
+  assertCan('products.edit');
   const from = list.findIndex((p) => p.code === draggedCode);
   if (from < 0 || from === targetIndex) return;
 
@@ -289,6 +296,7 @@ export function parseProductsCsv(text: string): CsvParseResult {
 export async function applyCsvUpdates(
   updates: CsvProductUpdate[],
 ): Promise<{ updated: number; unknown: string[] }> {
+  assertCan('products.edit');
   // Codes are the primary key; reading them keeps the check off the row bodies.
   const known = new Set((await db.products.toArray()).map((p) => p.code));
   const unknown: string[] = [];

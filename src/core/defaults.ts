@@ -53,6 +53,14 @@ export const DEFAULT_SETTINGS: Settings = {
     // Freight/pallet/discount codes appear as sale lines with real quantities.
     excludedShipVia: [],
     countsReadyAsAvailable: true,
+    exports: {
+      // The mirror in `docs/power-automate.md` writes these two paths. The app
+      // reads them and stops; it never writes to `exports/`.
+      autoImport: true,
+      intervalMinutes: 15,
+      locationPath: 'exports/location.xlsx',
+      futurePath: 'exports/future.xlsx',
+    },
   },
 
   sync: {

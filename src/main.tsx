@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Workbox } from 'workbox-window';
 import App from './App';
 import { watchSystemTheme } from './app/theme';
-import { toast } from './ui/primitives';
+import { Toaster, toast } from './ui/primitives';
 import './styles/theme.css';
 
 const el = document.getElementById('root');
@@ -14,6 +14,11 @@ watchSystemTheme();
 
 createRoot(el).render(
   <StrictMode>
+    {/* The toast host sits above the app rather than inside the shell: the sign-in
+        screen is rendered *instead of* the shell, so a host mounted there is simply
+        not on screen when the app most needs to speak — while somebody is at the
+        login. The service-worker update offer disappeared exactly that way. */}
+    <Toaster />
     <App />
   </StrictMode>,
 );

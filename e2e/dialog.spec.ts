@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { openApp } from './support';
+
 /**
  * The dialog has to be laid out against the window and stay out of the typing's way.
  *
@@ -9,17 +11,15 @@ import { expect, test } from '@playwright/test';
  * header strip: its title above the top of the screen, its dim covering only the
  * header, and each keystroke repainting inside a blurred region, which is what the
  * delay between letters was.
+ *
+ * The name prompt is now the account dialog, and the sign-in screen is a screen — so
+ * both get covered here: the dialog's geometry, and typing where no dialog is around.
  */
 
-test('the first-run dialog is positioned against the window', async ({ page }) => {
-  await page.goto('/');
-
-  const dialog = page.getByRole('dialog');
-  await expect(dialog.getByText('Who is using this?')).toBeVisible();
-
-  // The panel arrives on a spring, so measure it once it has stopped moving: the
-  // same box in two consecutive frames. Reading it mid-animation reported the sheet
-  // 20px below the bottom of a phone viewport, which is where it starts.
+/** The panel arrives on a spring, so measure it once it has stopped moving: the same
+ *  box in two consecutive frames. Reading it mid-animation reported the sheet 20px
+ *  below the bottom of a phone viewport, which is where it starts. */
+async function waitForDialogToSettle(page: import('@playwright/test').Page): Promise<void> {
   await page.waitForFunction(() => {
     const el = document.querySelector('[role="dialog"]');
     if (!el) return false;
@@ -29,6 +29,18 @@ test('the first-run dialog is positioned against the window', async ({ page }) =
     (window as unknown as { __lastBox?: string }).__lastBox = key;
     return settled;
   });
+}
+
+async function openAccountDialog(page: import('@playwright/test').Page): Promise<void> {
+  await page.getByRole('button', { name: /^Account:/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Your account')).toBeVisible();
+  await waitForDialogToSettle(page);
+}
+
+test('the account dialog is positioned against the window', async ({ page }) => {
+  await openApp(page);
+  await openAccountDialog(page);
 
   const geometry = await page.evaluate(() => {
     const dialog = document.querySelector('[role="dialog"]');
@@ -64,36 +76,32 @@ test('the first-run dialog is positioned against the window', async ({ page }) =
   expect(geometry.scrimHeight).toBe(geometry.viewportHeight);
 });
 
-test('typing a name is not interrupted by the dialog around it', async ({ page }) => {
-  await page.goto('/');
+test('typing a new passcode is not interrupted by the dialog around it', async ({ page }) => {
+  await openApp(page);
+  await openAccountDialog(page);
 
-  const box = page.getByRole('dialog').getByRole('textbox');
-  await box.waitFor({ state: 'visible' });
+  const box = page.getByRole('dialog').getByLabel('New passcode');
   await box.pressSequentially('Test Person', { delay: 0 });
 
   await expect(box).toHaveValue('Test Person');
   // Every keystroke used to re-focus the panel, which pulls the caret out of the
   // field: the text arrives, then stops arriving.
-  await expect(box, 'the caret is still in the name box after eleven keystrokes').toBeFocused();
+  await expect(box, 'the caret is still in the passcode box after eleven keystrokes').toBeFocused();
 
-  // Enter is the fast path out of the box.
-  await box.press('Enter');
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('header').first()).toContainText('Test Person');
 
   // The background scroll lock is given back, so the page scrolls again.
   expect(await page.evaluate(() => document.body.style.overflow), 'scroll lock released').toBe('');
 
-  // A saved name is remembered, so nobody is asked twice.
-  await page.reload();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // Escape closes the dialog without signing anybody out: this device is still
+  // someone's signed-in device.
+  await expect(page.getByRole('button', { name: /^Account:/ })).toBeVisible();
 });
 
 test('escape closes the dialog and gives the page back', async ({ page }) => {
-  await page.goto('/');
-  const box = page.getByRole('dialog').getByRole('textbox');
-  await box.waitFor({ state: 'visible' });
-  await box.pressSequentially('Sam');
+  await openApp(page);
+  await openAccountDialog(page);
 
   const dismissedAt = Date.now();
   await page.keyboard.press('Escape');
@@ -115,9 +123,49 @@ test('escape closes the dialog and gives the page back', async ({ page }) => {
   expect(cleared, 'seconds during which the dismissed dialog still swallowed taps').toBeGreaterThanOrEqual(0);
   expect(cleared, 'ms during which the dismissed dialog still swallowed taps').toBeLessThan(500);
   expect(Date.now() - dismissedAt, 'the dialog went away promptly').toBeLessThan(2_000);
+});
 
-  // Escape dismisses without saving, so a reload asks again — a name is the one
-  // thing the app cannot guess, and this browser has not told it yet.
+test('typing on the sign-in screen is not fighting anything', async ({ page }) => {
+  await page.goto('/');
+
+  // A fresh context has no accounts, so this is the owner-setup form: the same box the
+  // lag was reported against, one screen later in the app's life.
+  const name = page.getByLabel('Your name');
+  await name.waitFor({ state: 'visible' });
+  await name.pressSequentially('Test Person', { delay: 0 });
+  await expect(name).toHaveValue('Test Person');
+  await expect(name, 'the caret is still in the name box').toBeFocused();
+
+  // The confirm field is where the typing was worst: two boxes and a warning that
+  // changes as you type. Keep the focus and the value through all of it.
+  const code = page.getByLabel('Passcode', { exact: true });
+  await code.pressSequentially('trap door', { delay: 0 });
+  await expect(code).toHaveValue('trap door');
+  const confirm = page.getByLabel('Type it again');
+  await confirm.pressSequentially('trap door', { delay: 0 });
+  await expect(confirm).toHaveValue('trap door');
+  await expect(confirm, 'the advice under the box did not take the caret').toBeFocused();
+
+  // And the form lets the shop in.
+  await page.getByRole('button', { name: /Create the owner/ }).click();
+  await expect(page.locator('header').first()).toBeVisible();
+});
+
+test('a signed-in device does not ask again after a reload', async ({ page }) => {
+  await openApp(page);
+  const account = page.getByRole('button', { name: /^Account:/ });
+  await expect(account).toBeVisible();
+
   await page.reload();
-  await expect(page.getByRole('dialog').getByText('Who is using this?')).toBeVisible();
+
+  // No sign-in screen, no dialog: the account comes back from this device's own
+  // storage and is checked against the accounts on it before being trusted.
+  await expect(page.getByText('Who is on this device?')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(account).toBeVisible();
+
+  // Read the name out of the dialog rather than the header chip: on a phone the chip
+  // shows an initial only, and the name has to be there somewhere either way.
+  await account.click();
+  await expect(page.getByRole('dialog').getByText('Test Person — Owner')).toBeVisible();
 });

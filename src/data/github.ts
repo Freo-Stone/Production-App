@@ -183,6 +183,7 @@ export function decodeStateDocument(text: string): StateDocument {
     updatedAt: Number(raw.updatedAt ?? 0),
     products: list(raw.products), lines: list(raw.lines), batches: list(raw.batches),
     events: list(raw.events), planItems: list(raw.planItems), views: list(raw.views),
+    users: list(raw.users), devices: list(raw.devices),
     settings: raw.settings ?? structuredClone(DEFAULT_SETTINGS),
     device: String(raw.device ?? ''),
   };

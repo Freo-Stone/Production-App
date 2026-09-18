@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Product } from '@/core/types';
 import { db } from '@/data/db';
+import { signInForTests } from './support/who';
 import {
   applyCsvUpdates,
   bulkPatchProducts,
@@ -37,6 +38,7 @@ async function seed(...products: Product[]): Promise<void> {
 }
 
 async function reset(): Promise<void> {
+  signInForTests();
   await Promise.all([db.products.clear(), db.events.clear()]);
 }
 

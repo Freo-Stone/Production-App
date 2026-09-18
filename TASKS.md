@@ -7,7 +7,7 @@ Commands (all from the project root):
 
 ```
 pnpm run typecheck    # tsc on the app and the node config
-pnpm test             # vitest, jsdom + fake-indexeddb, 150 tests
+pnpm test             # vitest, jsdom + fake-indexeddb, 260 tests
 pnpm run build        # typecheck + vite build into dist/
 pnpm run e2e          # playwright: desktop, phone, firefox against a preview build
 ```
@@ -30,9 +30,9 @@ that has not happened yet.
 2. **Sync loop** — start `createSyncEngine` when a token exists, feed its status
    to the header pill, flush on Save and on reconnect. Two devices then share
    production without either overwriting the other.
-3. **Live exports** — Sources pulls `exports/location.xlsx` and
-   `exports/future.xlsx` from the repository on a schedule, so the figures on
-   screen are MYOB's current ones rather than the last time someone found a file.
+3. **Live exports** — **done** (M11): the app pulls `exports/location.xlsx` and
+   `exports/future.xlsx` from the repository while it is open, compares the blob
+   sha, and imports whichever changed.
 4. **Matrix (M4)** — the product × day view, which production entry builds on.
 5. **Production entry (M5)**, then **curing and shotblast (M6)**, then the
    **Friday MYOB queue (M7)**, then the rest of Settings.
@@ -202,6 +202,121 @@ Still to do:
   hand and the app never pushes.
 - Power Automate mirroring the exports, once the pull exists to consume them.
 - The first push: this working copy has no `.git` yet.
+
+## M10 — Logins, roles and devices · done, with one thread
+
+Asked for as: *"can we have a login for each user, as i do not want anyone
+accessing. My account can be the account that can edit all logins and change.
+delete etc. i want each device to be able to be remembered indefinately."*
+Decided with the shop first: accounts live **in the app** (not Cloudflare Access,
+not a token per person), three roles — **owner, maker, viewer** — and every entry
+in the ledger stamped with who did it.
+
+- `src/core/roles.ts` — one capability matrix, checked role by role in a test.
+  `src/core/passcode.ts` — PBKDF2-SHA256, 210,000 iterations, per-account salt,
+  verified on the device; 27–31 ms in Chromium and 39–46 ms in Firefox on the
+  development machine.
+- `src/data/principal.ts` — who is signed in, and the gate. `assertCan()` throws
+  `PermissionError` and sits as the first statement of every write in `src/data`
+  that a viewer must not make. This is module state rather than React state on
+  purpose: `src/data` may import `src/core` but never `src/app`, and the
+  signed-in person is not something the data layer should have to be told.
+- `src/data/accounts.ts` — accounts, passcodes, devices, the sign-in throttle
+  (five tries, thirty seconds, survives a reload), and `demoteExtraOwners`,
+  which settles two owners created on two devices at once on the
+  earliest-created one, so the merge stays commutative.
+- `users` and `devices` are collections in the shared document: merged, tombstoned
+  and read through `withCollections`, so the `state.json` sitting in the
+  repository today — written before accounts existed — still reads.
+- `src/app/session.ts` version 2 — the claim this browser remembers, re-checked
+  against the account list every time the app opens: missing, switched off,
+  renamed or re-roled means the claim goes. Nothing expires, which is what
+  "remembered indefinitely" asked for.
+- Screens: `SignIn.tsx` (owner setup on a clean device, person list, passcode,
+  cool-down, connect-a-device, and a real failure screen), `People.tsx` (two
+  ordinary tables, deliberately not the grid engine, with the reason in the
+  header comment), the account menu in the header replacing the old name dialog.
+- `src/App.tsx` refuses gated routes by role with a plain "Not this screen", and
+  the nav does not offer them at all. A viewer's Products board has no pick
+  column and no editable cells — the same text an unedited cell shows a writer.
+- Verified: 248 unit tests (accounts 33, roles 10, passcode 14, accounts-and-
+  devices merge 5, sign-in and People screens in jsdom 9, settings and seeding 5
+  new), 118 browser tests across desktop, phone and firefox — 9 of them
+  `e2e/accounts.spec.ts`, which drives the whole feature through the screens:
+  owner setup, a wrong code and the lockout, handing out a viewer login, the
+  smaller app that viewer gets, a typed-in `/settings` address, the read-only
+  board, a maker's own passcode changed and the old one refused, and this device
+  taken off the list under its own feet.
+
+Two real bugs came out of building it, both first seen as test failures:
+
+- **`signOut()` logged nobody.** It cleared the principal before writing the
+  ledger row, so every `auth.signout` line said an anonymous device had signed
+  out. It writes the line first now.
+- **A brand-new device never got past its loading screen.** `seedIfEmpty()`
+  counted the production lines, found none, and `bulkAdd`ed the five defaults —
+  and both the app shell and the sign-in screen behind it asked for that in the
+  same tick, so both passed the count and the second add failed with
+  `ConstraintError`. The promise rejected, nothing was listening, and the
+  spinner spun. 243 unit tests passed because they await one call at a time. It
+  coalesces concurrent callers now, adds only ids that are genuinely absent, and
+  a loser in a race with a second window checks the outcome instead of throwing.
+  The three tests in *first-run seeding* call it two and three ways at once.
+
+Thread, said on the People screen as well as here: **nothing pushes the shared
+file yet**, so a login created on one device is not on another one until the sync
+loop (working order 2) runs. The collections, the merge and the read path are
+finished; the loop is not.
+
+## M11 — The exports arrive on their own · done
+
+Asked for as: *"i want these spreadsheets to auto import when changed"*, with the
+Data sources screen as the picture. The limit that had to be said out loud first
+is the one the whole design rests on: there is no server, so "when changed" means
+the next time an app is open and online on a device holding the token. A closed
+laptop notices nothing.
+
+- `src/data/exportSync.ts` — the check. GitHub's Contents API hands back a blob
+  sha, so an unchanged file costs one request and writes nothing; a different sha
+  is parsed and pushed through the **same** `commitImport` a hand-drop uses, so
+  there is one set of import rules rather than two. The sha is only recorded when
+  the import succeeded, which is what makes an interrupted mirror upload retry
+  itself instead of being marked seen and lost. The two files are read one after
+  the other because each import rewrites one mirror and then reads both.
+  Concurrent callers share one run, the same way first-run seeding does.
+- `src/app/exportWatch.ts` — the timer: a few seconds after opening, then on the
+  interval, on reconnect, and when a backgrounded tab comes back stale. The
+  interval is read from Settings each tick, so changing it needs no reload.
+- `src/screens/SourcesAutoImport.tsx` — the card: the switch, the interval, the
+  two paths, and per file whether it is up to date, when it came in with how many
+  rows, or what went wrong. `Check now` skips the sha shortcut.
+- Declines are reasons, not exceptions: switched off, signed in as a viewer, no
+  token, offline. A timer that logged a refusal every fifteen minutes would be
+  noise, so `exportWatchBlocker` answers the question in the words the card
+  shows, and `commitImport` still asserts for real.
+- Every device imports for itself against its own last sha, which is why this
+  works today without the sync loop — and stays correct once it exists, because
+  two devices importing one file produce identical rows and a merge of identical
+  content changes nothing.
+- Verified: 260 unit tests (12 new in `test/data.exportSync.test.ts` — first
+  import, unchanged skip, only-the-changed-file, retry after an unreadable file,
+  a file that goes missing, the viewer / switched-off / no-token declines, one run
+  shared by concurrent callers, the persisted state), 6 in
+  `test/ui.autoImport.test.tsx`, and `e2e/exports.spec.ts` (4) across desktop,
+  phone and firefox.
+
+Two things the browser caught that the unit tests could not:
+
+- **The toast host was inside the shell.** `Toaster` is mounted by `Shell`, and
+  the sign-in screen is rendered *instead of* the shell — so every toast raised
+  while the login was on screen was pushed into a host that was not there,
+  including the service worker's "new version available". `pnpm run check:worker`
+  failed on exactly that, and the host is mounted in `main.tsx` above the app now.
+- **A test that reloads before a write lands proves nothing.** Asserting the
+  persisted interval after a reload passed while the switch did not: the click
+  resolves before the IndexedDB transaction commits, and the reload arrived in
+  between. The e2e now waits for the switch to come back through Settings — the
+  round trip, not the widget remembering its own click.
 
 ## The one a browser had to catch
 

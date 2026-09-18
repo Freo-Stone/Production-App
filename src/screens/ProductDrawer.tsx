@@ -25,11 +25,14 @@ export function ProductDrawer({
   position,
   defaultCureDays,
   onClose,
+  readOnly = false,
 }: {
   product: Product | null;
   position: DrawerPosition | null;
   defaultCureDays: number;
   onClose: () => void;
+  /** A viewer may read a product but has nothing to save. */
+  readOnly?: boolean;
 }) {
   // Draft state so a half-typed number cannot land in the database on a blur
   // caused by closing the drawer.
@@ -42,6 +45,7 @@ export function ProductDrawer({
     setDraft((d) => (d ? { ...d, ...patch } : d));
   };
   const save = (): void => {
+    if (readOnly) return;
     void patchProduct(draft.code, {
       enabled: draft.enabled,
       route: draft.route,
@@ -69,11 +73,17 @@ export function ProductDrawer({
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {readOnly ? 'Close' : 'Cancel'}
           </Button>
-          <Button variant="primary" icon="save" onClick={save}>
-            Save product
-          </Button>
+          {readOnly ? (
+            <Chip tone="neutral" title="A viewer reads the board and changes nothing on it.">
+              Read only
+            </Chip>
+          ) : (
+            <Button variant="primary" icon="save" onClick={save}>
+              Save product
+            </Button>
+          )}
         </>
       }
     >

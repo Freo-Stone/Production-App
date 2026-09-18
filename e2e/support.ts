@@ -7,25 +7,56 @@ export const FILES = {
 };
 
 /**
- * First run asks who is at the keyboard.
+ * Get past the sign-in screen.
  *
- * The answer decides only which saved table layout belongs to this browser —
- * there are no roles and no passwords in this app.
+ * A fresh browser context has no accounts, so the first call creates the shop's owner
+ * and signs in on the spot. Later calls in the same context find the person list and
+ * sign in as whoever is asked for — which is how the tests sign in as a viewer without
+ * pretending to be one.
+ *
+ * The passcode is hashed on the device at the app's real cost, so every wait here is
+ * on a condition, never on a fixed pause: a wrong guess of the timing is a timeout with
+ * a name, not a mystery.
  */
-export async function signIn(page: Page, name = 'Test'): Promise<void> {
-  const dialog = page.getByRole('dialog');
-  const who = dialog.getByText('Who is using this?');
-  // One-shot `isVisible()` was a flake: on a busy machine the dialog mounts a
-  // beat after boot, the peek returned false, and the test carried on with a
-  // modal sitting in front of it. Bounded wait, then a real fill.
-  if (!(await who.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true).catch(() => false))) {
+export async function signIn(
+  page: Page,
+  name = 'Test Person',
+  passcode = 'shop floor',
+): Promise<void> {
+  const setup = page.getByRole('heading', { name: 'Set up the shop' });
+  const list = page.getByText('Who is on this device?');
+
+  if (await setup.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true).catch(() => false)) {
+    await page.getByLabel('Your name').fill(name);
+    await page.getByLabel('Passcode', { exact: true }).fill(passcode);
+    await page.getByLabel('Type it again').fill(passcode);
+    await page.getByRole('button', { name: /Create the owner/ }).click();
+    await expect(page.locator('header').first()).toBeVisible();
     return;
   }
-  const box = dialog.getByRole('textbox');
-  await box.waitFor({ state: 'visible' });
-  await box.fill(name);
-  await dialog.getByRole('button', { name: 'Save' }).click();
-  await expect(dialog).toHaveCount(0);
+
+  if (await list.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true).catch(() => false)) {
+    await page.getByRole('button', { name: new RegExp(name) }).click();
+    const code = page.getByLabel('Passcode', { exact: true });
+    await code.waitFor({ state: 'visible' });
+    await code.fill(passcode);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('header').first()).toBeVisible();
+    return;
+  }
+
+  // Neither screen: already signed in. Assert the board is actually there rather than
+  // returning quietly, so a test that expected a sign-in fails where it happened.
+  await expect(page.locator('header').first()).toBeVisible();
+}
+
+/** Signs out through the header menu, so the menu itself is part of the coverage. */
+export async function signOut(page: Page): Promise<void> {
+  await page.getByRole('button', { name: /^Account:/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Your account')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByText('Who is on this device?')).toBeVisible();
 }
 
 export async function openApp(page: Page, route = '/'): Promise<void> {

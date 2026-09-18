@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Batch, EventLog, Line, PlanItem, Product } from '@/core/types';
+import type { Account, Batch, DeviceRecord, EventLog, Line, PlanItem, Product } from '@/core/types';
 import type { ViewRecord } from '@/data/db';
 import { ConflictError, GitHubError } from '@/data/github';
 import { emptyDocument, type StateDocument } from '@/data/merge';
@@ -136,7 +136,16 @@ function fakeTable<T>(rows: T[], keyOf: (row: T) => string) {
   };
 }
 
-function fakeDb(seed: { products?: Product[]; batches?: Batch[]; events?: EventLog[]; views?: ViewRecord[] } = {}) {
+function fakeDb(
+  seed: {
+    products?: Product[];
+    batches?: Batch[];
+    events?: EventLog[];
+    views?: ViewRecord[];
+    users?: Account[];
+    devices?: DeviceRecord[];
+  } = {},
+) {
   const meta = new Map<string, unknown>();
   return {
     products: fakeTable(seed.products ?? [], (row: Product) => row.code),
@@ -145,6 +154,8 @@ function fakeDb(seed: { products?: Product[]; batches?: Batch[]; events?: EventL
     events: fakeTable(seed.events ?? [], (row: EventLog) => row.id),
     planItems: fakeTable<PlanItem>([], (row) => row.id),
     views: fakeTable<ViewRecord>(seed.views ?? [], (row) => row.key),
+    users: fakeTable<Account>(seed.users ?? [], (row) => row.id),
+    devices: fakeTable<DeviceRecord>(seed.devices ?? [], (row) => row.id),
     meta: {
       get: async (key: string) => (meta.has(key) ? { key, value: meta.get(key) } : undefined),
       put: async (row: { key: string; value: unknown }) => {

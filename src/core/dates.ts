@@ -152,6 +152,31 @@ export function relativeDays(target: number, now = Date.now()): string {
   return n > 0 ? `in ${n} days` : `${Math.abs(n)} days ago`;
 }
 
+/** `10:42` — when a file was pulled, when the shop last checked. */
+export function formatClock(ms: number | null): string {
+  if (ms == null) return '';
+  const d = new Date(ms);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/**
+ * `just now`, `4 min ago`, `2 h ago`, `yesterday`, `5 days ago`. Short enough for a
+ * status line that has to fit beside a chip on a phone.
+ */
+export function formatSince(ms: number | null, now = Date.now()): string {
+  if (ms == null) return 'never';
+  const seconds = Math.max(0, Math.round((now - ms) / 1000));
+  if (seconds < 45) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = diffDays(ms, now);
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  return formatDayNum(ms);
+}
+
 export function weekdayName(weekday: number): string {
   return WEEKDAYS[((weekday % 7) + 7) % 7] ?? '';
 }

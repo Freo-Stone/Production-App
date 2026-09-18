@@ -1,13 +1,17 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Brand } from '@/app/Brand';
 import { navigate, routeIsActive, useRoute } from '@/app/router';
-import { useSession } from '@/app/session';
+import { signOutLocally, useCan, useSession } from '@/app/session';
 import { useTheme } from '@/app/theme';
-import { NAV, MOBILE_TAB_PATHS, navByPath, NAV_GROUPS, type NavItem } from '@/app/nav';
+import { NAV, MOBILE_TAB_PATHS, navByPath, NAV_GROUPS, navVisible, type NavItem } from '@/app/nav';
 import { useUi } from '@/app/uiState';
+import { accountFailureText, setPasscode, signOut } from '@/data/accounts';
+import { passcodeAdvice, passcodeAccepted } from '@/core/passcode';
+import { ROLE_LABEL } from '@/core/roles';
 import { db } from '@/data/db';
 import { Icon, type IconName } from '@/ui/Icon';
-import { Button, Chip, cx, Field, IconButton, Modal, TextInput, Toaster } from '@/ui/primitives';
+import { Button, Chip, cx, Field, IconButton, Modal, TextInput, toast } from '@/ui/primitives';
 import type { BatchStage } from '@/core/types';
 
 /* ── Small hooks ───────────────────────────────────────────────────────────── */
@@ -53,22 +57,6 @@ function ageLabel(capturedAt: number | null | undefined): { text: string; tone: 
 }
 
 /* ── Pieces ────────────────────────────────────────────────────────────────── */
-
-function Brand({ compact }: { compact: boolean }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="grid size-7 shrink-0 place-items-center rounded-[7px] bg-accent text-[0.78rem] font-800 text-accentink">
-        FS
-      </span>
-      {!compact ? (
-        <span className="min-w-0">
-          <span className="block truncate text-[0.86rem] font-700 leading-tight">Freo Stone</span>
-          <span className="block truncate text-[0.68rem] text-ink3 leading-tight">Production</span>
-        </span>
-      ) : null}
-    </div>
-  );
-}
 
 function NavLink({
   item,
@@ -124,6 +112,9 @@ function SideRail({ path }: { path: string }) {
   const collapsed = useUi((s) => s.railCollapsed);
   const toggleRail = useUi((s) => s.toggleRail);
   const badges = useNavBadges();
+  // A viewer has no reason to be offered Settings or People, so they are not in the
+  // list at all. What they may *do* is settled underneath the buttons.
+  const navRole = useSession((s) => s.role);
 
   return (
     <nav
@@ -137,7 +128,7 @@ function SideRail({ path }: { path: string }) {
       </div>
 
       {NAV_GROUPS.map((group) => {
-        const items = NAV.filter((n) => n.group === group.key);
+        const items = NAV.filter((n) => n.group === group.key && navVisible(n, navRole));
         return (
           <div key={group.key} className="mt-2 flex flex-col gap-0.5">
             {!collapsed ? (
@@ -172,6 +163,7 @@ function SideRail({ path }: { path: string }) {
 }
 
 function MobileTabs({ path }: { path: string }) {
+  const navRole = useSession((s) => s.role);
   const [more, setMore] = useState(false);
   const badges = useNavBadges();
   const tabs = useMemo(
@@ -211,7 +203,7 @@ function MobileTabs({ path }: { path: string }) {
       <Modal open={more} onClose={() => setMore(false)} title="All screens" width="sm">
         <div className="flex flex-col gap-3">
           {NAV_GROUPS.map((group) => {
-            const items = NAV.filter((n) => n.group === group.key);
+            const items = NAV.filter((n) => n.group === group.key && navVisible(n, navRole));
             if (items.length === 0) return null;
             return (
               <div key={group.key}>
@@ -247,28 +239,61 @@ function MobileTabs({ path }: { path: string }) {
   );
 }
 
-function IdentityButton() {
+/**
+ * Who is signed in, on this device, right now.
+ *
+ * This used to be a box you typed a name into. It is now the account the passcode
+ * checked out, and the only way to change it is to sign in as somebody else — which
+ * is the point of having accounts at all.
+ */
+function AccountMenu() {
   const name = useSession((s) => s.name);
-  const setName = useSession((s) => s.setName);
+  const role = useSession((s) => s.role);
+  const userId = useSession((s) => s.userId);
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(name);
-  // First run: ask who is at the keyboard so table layouts land on the right person.
-  const [nagged, setNagged] = useState(false);
-  useEffect(() => {
-    if (name === '' && !nagged) setOpen(true);
-  }, [name, nagged]);
+  const [code, setCode] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  const canPeople = useCan('people.manage');
 
   const initial = name.trim().slice(0, 1).toUpperCase() || '?';
+
+  async function savePasscode(): Promise<void> {
+    if (userId === null) return;
+    setBusy(true);
+    try {
+      const result = await setPasscode(userId, code);
+      if (!result.ok) {
+        setNotice(accountFailureText(result.reason));
+        return;
+      }
+      setNotice('');
+      setCode('');
+      setConfirm('');
+      setOpen(false);
+      toast('info', 'Passcode changed');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'That did not work.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const advice = passcodeAdvice(code);
 
   return (
     <>
       <button
         type="button"
         onClick={() => {
-          setDraft(name);
+          setNotice('');
           setOpen(true);
         }}
-        title={name === '' ? 'Set your name' : `Signed in as ${name}`}
+        title={`Signed in as ${name}`}
+        // The visible label is just an initial and a first name, which is not enough
+        // for a screen reader or a test to know what the button is for.
+        aria-label={`Account: ${name}`}
         className="btn btn-ghost !px-1.5"
       >
         <span className="grid size-6 place-items-center rounded-full border border-line bg-surface3 text-[0.7rem] font-700">
@@ -279,43 +304,77 @@ function IdentityButton() {
 
       <Modal
         open={open}
-        onClose={() => {
-          setNagged(true);
-          setOpen(false);
-        }}
-        title="Who is using this?"
+        onClose={() => setOpen(false)}
+        title="Your account"
+        subtitle={`${name} — ${role === null ? 'no role' : ROLE_LABEL[role]}`}
         width="sm"
         footer={
-          <Button
-            variant="primary"
-            onClick={() => {
-              setName(draft);
-              setNagged(true);
-              setOpen(false);
-            }}
-          >
-            Save
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {canPeople ? (
+              <Button
+                icon="user"
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/people');
+                }}
+              >
+                People and devices
+              </Button>
+            ) : null}
+            <Button
+              icon="cloudOff"
+              onClick={() => {
+                // Both halves: the ledger entry and the principal (data layer), then
+                // the remembered session, so the app falls back to the sign-in screen.
+                void signOut().then(() => {
+                  signOutLocally();
+                  setOpen(false);
+                });
+              }}
+            >
+              Sign out
+            </Button>
+            <Button
+              variant="primary"
+              disabled={busy || code !== confirm || !passcodeAccepted(code)}
+              onClick={() => void savePasscode()}
+            >
+              Change passcode
+            </Button>
+          </div>
         }
       >
-        <Field
-          label="Your name"
-          hint="No passwords — everyone has the same access. Your name only decides which saved table layout is yours, so your changes never overwrite anyone else’s."
-        >
-          <TextInput
-            autoFocus
-            value={draft}
-            placeholder="e.g. Sam"
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                setName(draft);
-                setNagged(true);
-                setOpen(false);
-              }
-            }}
-          />
-        </Field>
+        <div className="space-y-4">
+          <p className="text-xs text-ink3">
+            Your name and what you are allowed to do are set by the owner. This device stays signed in
+            until you sign out or the owner takes it off the list.
+          </p>
+          <Field
+            label="New passcode"
+            hint={advice ?? 'At least four characters. Something you can type with wet gloves on.'}
+          >
+            <TextInput
+              type="password"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="••••••"
+              autoComplete="new-password"
+            />
+          </Field>
+          <Field label="Type it again">
+            <TextInput
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="••••••"
+              autoComplete="new-password"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && code === confirm && passcodeAccepted(code)) void savePasscode();
+              }}
+            />
+          </Field>
+          {notice !== '' ? <p className="text-xs text-short">{notice}</p> : null}
+        </div>
       </Modal>
     </>
   );
@@ -394,7 +453,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 </Chip>
               </span>
               <IconButton icon={themeIcon} label={`Theme: ${themePref} (click to change)`} onClick={cycleTheme} />
-              <IdentityButton />
+              <AccountMenu />
             </div>
           </header>
 
@@ -403,7 +462,6 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
 
       <MobileTabs path={route.path} />
-      <Toaster />
     </div>
   );
 }

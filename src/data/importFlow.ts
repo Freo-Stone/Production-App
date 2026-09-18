@@ -9,6 +9,7 @@ import {
   replaceStockSnapshot,
 } from '@/data/db';
 import { logEvent } from '@/data/events';
+import { assertCan } from '@/data/principal';
 
 export interface ImportCommit {
   kind: 'stock' | 'jobs';
@@ -37,6 +38,9 @@ export interface ImportCommit {
  *    else on an existing product is touched: no unit, no yield, no target.
  */
 export async function commitImport(result: ImportResult): Promise<ImportCommit> {
+  // An import rewrites the stock mirror and the open job lines, so it is a maker's
+  // action — whatever screen the file happened to be dropped onto.
+  assertCan('sources.import');
   const now = Date.now();
 
   if (result.stock) {

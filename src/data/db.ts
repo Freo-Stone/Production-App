@@ -1,7 +1,9 @@
 import Dexie, { type Table } from 'dexie';
 import { DEFAULT_LINES, DEFAULT_SETTINGS } from '@/core/defaults';
 import type {
+  Account,
   Batch,
+  DeviceRecord,
   EventLog,
   JobsSnapshot,
   JobRow,
@@ -33,6 +35,8 @@ export class FreoDB extends Dexie {
   jobRows!: Table<JobRowRecord, string>;
 
   views!: Table<ViewRecord, string>;
+  users!: Table<Account, string>;
+  devices!: Table<DeviceRecord, string>;
   meta!: Table<{ key: string; value: unknown }, string>;
 
   constructor(name = 'freo-stone') {
@@ -58,6 +62,15 @@ export class FreoDB extends Dexie {
 
       views: 'key, screen, owner',
       meta: 'key',
+    });
+
+    // Version 2: accounts and the devices that have signed in with them. Listed on
+    // their own because `stores()` only describes what changed, and a device that
+    // already holds version 1 data must keep it — nobody in the shop loses their
+    // products or their saved views because a login screen was added.
+    this.version(2).stores({
+      users: 'id, role, disabled, updatedAt, deleted',
+      devices: 'id, userId, revoked, lastSeenAt, updatedAt',
     });
   }
 }
@@ -119,13 +132,45 @@ export async function setMeta(key: string, value: unknown): Promise<void> {
   await db.meta.put({ key, value });
 }
 
-/** First-run seeding: lines and settings only. Products stay empty until an import. */
-export async function seedIfEmpty(): Promise<void> {
-  const lineCount = await db.lines.count();
-  if (lineCount === 0) {
+/**
+ * First-run seeding: lines and settings only. Products stay empty until an import.
+ *
+ * Two screens ask for this on mount — the app shell, and the sign-in screen behind it —
+ * in the same tick. The first version counted the lines, found none, and `bulkAdd`ed the
+ * five defaults; both callers passed the count before either had written, so the second
+ * add failed with `ConstraintError: Key already exists`, the promise rejected, and a
+ * brand-new device sat on its loading screen for ever. So: concurrent callers join one
+ * shared run, the write only adds ids that are genuinely absent, and a loser in a race
+ * with a *second window* on the same database checks the outcome instead of throwing.
+ */
+let seeding: Promise<void> | null = null;
+
+export function seedIfEmpty(): Promise<void> {
+  seeding ??= seedOnce().finally(() => {
+    seeding = null;
+  });
+  return seeding;
+}
+
+async function seedOnce(): Promise<void> {
+  const missingLines = async (): Promise<Line[]> => {
+    const have = new Set((await db.lines.toArray()).map((l) => l.id));
     const now = Date.now();
-    await db.lines.bulkAdd(DEFAULT_LINES.map((l) => ({ ...l, updatedAt: now })));
+    return DEFAULT_LINES.filter((l) => !have.has(l.id)).map((l) => ({ ...l, updatedAt: now }));
+  };
+
+  const rows = await missingLines();
+  if (rows.length > 0) {
+    try {
+      await db.lines.bulkAdd(rows);
+    } catch (error) {
+      // Another window wrote the same defaults first. If every one of them is there
+      // now, this run has nothing left to do; anything else is a real failure and the
+      // caller needs to hear about it.
+      if ((await missingLines()).length > 0) throw error;
+    }
   }
+
   if ((await db.meta.get('settings')) == null) {
     await db.meta.put({ key: 'settings', value: structuredClone(DEFAULT_SETTINGS) });
   }

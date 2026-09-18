@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCan } from '@/app/session';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useView } from '@/app/useView';
 import { demandByProduct, productPosition } from '@/core/calc';
@@ -20,7 +21,7 @@ import {
 } from '@/data/productRepo';
 import { DataTable, type ColumnDef } from '@/ui/DataTable';
 import { ViewToolbar } from '@/ui/DataTable/ViewToolbar';
-import { CellCheck, CellNumber, CellSelect, CellText } from '@/ui/cellEditors';
+import { CellCheck, CellNumber, CellSelect, CellStatic, CellText } from '@/ui/cellEditors';
 import { Icon } from '@/ui/Icon';
 import {
   Button,
@@ -82,6 +83,10 @@ export function Products() {
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [openCode, setOpenCode] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // Who is reading this board. Everything write-shaped is withheld, and the writes
+  // themselves are refused in src/data/productRepo.ts, so a viewer cannot edit the
+  // range from a console either.
+  const canEdit = useCan('products.edit');
 
   // Rank order, not code order: a drag writes a rank between its *displayed*
   // neighbours, so the list on screen has to be the rank order it is editing.
@@ -155,8 +160,8 @@ export function Products() {
   }, []);
 
   const columns = useMemo(
-    () => columnsFor({ write, isPicked: (c) => picked.has(c), togglePick }),
-    [write, picked, togglePick],
+    () => columnsFor({ write, isPicked: (c) => picked.has(c), togglePick, readOnly: !canEdit }),
+    [write, picked, togglePick, canEdit],
   );
 
   const open = openCode ? (rows.find((r) => r.code === openCode) ?? null) : null;
@@ -226,9 +231,12 @@ export function Products() {
                 if (file) void importCsv(file);
               }}
             />
-            <Button size="sm" icon="upload" onClick={() => fileInput.current?.click()}>
-              Import CSV
-            </Button>
+            {/* A viewer reads the range; the sheet that changes it is not offered. */}
+            {canEdit ? (
+              <Button size="sm" icon="upload" onClick={() => fileInput.current?.click()}>
+                Import CSV
+              </Button>
+            ) : null}
           </>
         }
       >
@@ -256,24 +264,34 @@ export function Products() {
                   options={FILTERS}
                   className="w-40"
                 />
-                <Button
-                  size="sm"
-                  variant={allShownPicked ? 'primary' : 'default'}
-                  onClick={() =>
-                    setPicked(allShownPicked ? new Set() : new Set(shown.map((r) => r.code)))
-                  }
-                >
-                  {allShownPicked ? 'Unpick all' : `Pick all ${formatNumber(shown.length, 0)}`}
-                </Button>
+                {/* Picking exists to feed the bulk edit, so it is a writer's control. */}
+                {canEdit ? (
+                  <Button
+                    size="sm"
+                    variant={allShownPicked ? 'primary' : 'default'}
+                    onClick={() =>
+                      setPicked(allShownPicked ? new Set() : new Set(shown.map((r) => r.code)))
+                    }
+                  >
+                    {allShownPicked ? 'Unpick all' : `Pick all ${formatNumber(shown.length, 0)}`}
+                  </Button>
+                ) : null}
                 <Chip tone="info" title="Baseline items have the phantom 10000 removed from on-hand.">
                   {formatNumber(shown.length, 0)} of {formatNumber(counts.total, 0)} shown
                 </Chip>
+                {canEdit ? null : (
+                  <Chip tone="warn" title="Only the owner and makers change the range.">
+                    Read only
+                  </Chip>
+                )}
               </>
             }
           />
         </div>
 
-        {picked.size > 0 ? <BulkBar pickedCount={picked.size} onApply={(p) => void applyBulk(p)} /> : null}
+        {/* A viewer reads this board: the picking controls and the bulk bar are not
+            offered at all, and the writes underneath refuse as well. */}
+        {canEdit && picked.size > 0 ? <BulkBar pickedCount={picked.size} onApply={(p) => void applyBulk(p)} /> : null}
 
         <div className="h-[min(64vh,660px)] min-h-0">
           <DataTable
@@ -285,7 +303,9 @@ export function Products() {
             rankOf={(r) => r.rank}
             selectedId={openCode}
             onRowClick={(r) => setOpenCode(r.code)}
-            onReorder={(code, to) => void moveProductInList(code, to, shown)}
+            {...(canEdit
+              ? { onReorder: (code: string, to: number) => void moveProductInList(code, to, shown) }
+              : {})}
             loading={products === undefined}
             rowClassName={(r) => (picked.has(r.code) ? 'bg-accent/[0.07]' : undefined)}
             empty={
@@ -307,6 +327,7 @@ export function Products() {
 
       {settings ? (
         <ProductDrawer
+          readOnly={!canEdit}
           product={open}
           position={
             open
@@ -429,12 +450,47 @@ interface Handlers {
   write: (code: string, patch: ProductPatch) => Promise<void>;
   isPicked: (code: string) => boolean;
   togglePick: (code: string) => void;
+  readOnly: boolean;
 }
 
-function columnsFor({ write, isPicked, togglePick }: Handlers): ColumnDef<Row>[] {
-  const edit = (code: string) => (patch: ProductPatch) => void write(code, patch);
+/** The tick a writer sees, minus the button underneath it. */
+function ReadCheck({ on }: { on: boolean }): ReactNode {
+  return (
+    <CellStatic className="justify-center">
+      {on ? (
+        <Icon name="check" size={12} className="text-curing" />
+      ) : (
+        <span className="text-[0.7rem] text-ink3">—</span>
+      )}
+    </CellStatic>
+  );
+}
 
-  return [
+/**
+ * A viewer's board is the same board with nothing to click.
+ *
+ * Dropping `render` from a column hands the cell back to the engine, which draws the
+ * column's own `value` through its `format` — the identical text a writer sees in an
+ * unedited cell. Only the four columns whose writer state is not plain text need a
+ * substitute. The pick column is not in the list because it is removed outright: it
+ * exists to feed the bulk edit.
+ */
+const READ_ONLY_RENDER: Partial<Record<string, (row: Row) => ReactNode>> = {
+  enabled: (r) => <ReadCheck on={r.enabled} />,
+  usesBaseline10000: (r) => <ReadCheck on={r.usesBaseline10000} />,
+  route: (r) => <CellStatic>{ROUTE_LABELS[r.route]}</CellStatic>,
+  unit: (r) => <CellStatic>{unitLabel(r.unit)}</CellStatic>,
+};
+
+function columnsFor({ write, isPicked, togglePick, readOnly }: Handlers): ColumnDef<Row>[] {
+  const edit = (code: string) => (patch: ProductPatch): void => {
+    // Nobody should be able to reach this from a read-only board, and the data layer
+    // would refuse it anyway. Both are true, so both are written down.
+    if (readOnly) return;
+    void write(code, patch);
+  };
+
+  const columns: ColumnDef<Row>[] = [
     {
       key: 'pick',
       header: '',
@@ -591,6 +647,14 @@ function columnsFor({ write, isPicked, togglePick }: Handlers): ColumnDef<Row>[]
       render: (r) => <CellText value={r.notes} onCommit={(notes) => edit(r.code)({ notes })} />,
     },
   ];
+
+  if (!readOnly) return columns;
+  return columns
+    .filter((c) => c.key !== 'pick')
+    .map(({ render: _render, ...rest }) => {
+      const asText = READ_ONLY_RENDER[rest.key];
+      return asText ? { ...rest, render: asText } : rest;
+    });
 }
 
 function describePatch(patch: ProductPatch): string {

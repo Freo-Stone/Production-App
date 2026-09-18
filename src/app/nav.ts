@@ -1,3 +1,5 @@
+import { can, type Capability } from '@/core/roles';
+import type { AccountRole } from '@/core/types';
 import type { IconName } from '@/ui/Icon';
 
 /**
@@ -18,6 +20,13 @@ export interface NavItem {
   blurb: string;
   /** Which live count, if any, rides along as a badge. */
   badge?: 'curing' | 'shotblast' | 'myob' | 'late';
+  /**
+   * Which account may see this at all. Absent means everyone signed in. It decides
+   * what is *listed*, never what is allowed — the check that counts is in the data
+   * layer under the button, so a viewer typing `/settings` into the address bar gets
+   * a refusal, not a way in.
+   */
+  capability?: Capability;
 }
 
 export const NAV_GROUPS: Array<{ key: NavGroup; label: string }> = [
@@ -110,6 +119,7 @@ export const NAV: NavItem[] = [
     icon: 'sources',
     group: 'setup',
     blurb: 'MYOB exports: freshness, contents and manual import.',
+    capability: 'sources.import',
   },
   {
     path: '/settings',
@@ -118,11 +128,26 @@ export const NAV: NavItem[] = [
     icon: 'settings',
     group: 'setup',
     blurb: 'Cure times, lines, the weekly entry day and sync.',
+    capability: 'settings.manage',
+  },
+  {
+    path: '/people',
+    label: 'People',
+    short: 'People',
+    icon: 'user',
+    group: 'setup',
+    blurb: 'Who can sign in, what they may do, and which devices are allowed.',
+    capability: 'people.manage',
   },
 ];
 
 /** The four screens used on the floor, in thumb order. Everything else is in More. */
 export const MOBILE_TAB_PATHS = ['/', '/entry', '/curing', '/myob'];
+
+/** Whether a role sees this entry at all. `null` role means nobody is signed in. */
+export function navVisible(item: NavItem, role: AccountRole | null): boolean {
+  return item.capability === undefined || can(role, item.capability);
+}
 
 export function navByPath(path: string): NavItem | undefined {
   if (NAV.some((n) => n.path === path)) return NAV.find((n) => n.path === path);

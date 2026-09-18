@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, defaultView } from '@/core/defaults';
-import type { Batch, EventLog, Line, PlanItem, Product, Settings, ViewDef } from '@/core/types';
+import type {
+  Account,
+  Batch,
+  DeviceRecord,
+  EventLog,
+  Line,
+  PlanItem,
+  Product,
+  Settings,
+  ViewDef,
+} from '@/core/types';
 import type { ViewRecord } from '@/data/db';
 import {
   applyDocumentToDb,
@@ -15,6 +25,7 @@ import {
   mergeSettings,
   reconcileLocal,
   sortForWrite,
+  withCollections,
   type StateDocument,
 } from '@/data/merge';
 
@@ -117,6 +128,34 @@ function view(screen: string, owner: string, over: Partial<ViewDef> = {}): ViewR
   };
 }
 
+function account(id: string, over: Partial<Account> = {}): Account {
+  return {
+    id,
+    name: 'Test Person',
+    role: 'maker',
+    passcode: { salt: 'c2FsdHNhbHRzYWx0YTE=', hash: 'aGFzaA==', iterations: 1_000 },
+    disabled: false,
+    note: '',
+    createdAt: 1000,
+    createdBy: 'acct-owner',
+    updatedAt: 1000,
+    ...over,
+  };
+}
+
+function device(id: string, over: Partial<DeviceRecord> = {}): DeviceRecord {
+  return {
+    id,
+    label: 'Shop floor PC',
+    userId: 'acct-owner',
+    signedInAt: 1000,
+    lastSeenAt: 1000,
+    revoked: false,
+    updatedAt: 1000,
+    ...over,
+  };
+}
+
 function doc(over: Partial<StateDocument> = {}): StateDocument {
   return { ...emptyDocument('dev-a', 1000), ...over };
 }
@@ -133,6 +172,8 @@ const records = (d: StateDocument): unknown => ({
   events: d.events,
   planItems: d.planItems,
   views: d.views,
+  users: d.users,
+  devices: d.devices,
   settings: d.settings,
   updatedAt: d.updatedAt,
 });
@@ -478,7 +519,11 @@ function fakeTable<T>(rows: T[], keyOf: (row: T) => string) {
   };
 }
 
-function fakeDb(seed: Partial<Record<'products' | 'lines' | 'batches' | 'events' | 'planItems' | 'views', unknown[]>> = {}) {
+function fakeDb(
+  seed: Partial<
+    Record<'products' | 'lines' | 'batches' | 'events' | 'planItems' | 'views' | 'users' | 'devices', unknown[]>
+  > = {},
+) {
   const tables = {
     products: fakeTable((seed.products ?? []) as Product[], (row: Product) => row.code),
     lines: fakeTable((seed.lines ?? []) as Line[], (row: Line) => row.id),
@@ -486,6 +531,8 @@ function fakeDb(seed: Partial<Record<'products' | 'lines' | 'batches' | 'events'
     events: fakeTable((seed.events ?? []) as EventLog[], (row: EventLog) => row.id),
     planItems: fakeTable((seed.planItems ?? []) as PlanItem[], (row: PlanItem) => row.id),
     views: fakeTable((seed.views ?? []) as ViewRecord[], (row: ViewRecord) => row.key),
+    users: fakeTable((seed.users ?? []) as Account[], (row: Account) => row.id),
+    devices: fakeTable((seed.devices ?? []) as DeviceRecord[], (row: DeviceRecord) => row.id),
   };
   const meta = new Map<string, unknown>();
   return {
@@ -550,4 +597,82 @@ describe('database bridge', () => {
   });
 });
 
+/* ── Accounts and devices ──────────────────────────────────────────────────── */
 
+describe('accounts and devices', () => {
+  // Two devices that each added a person must end up with both, in either order: the
+  // shop's account list is the one thing that cannot quietly lose somebody.
+  it('unions accounts created on different devices, both ways round', () => {
+    const local = doc({ users: [account('acct-a', { name: 'Test Maker', updatedAt: 2000 })] });
+    const remote = doc({
+      device: 'dev-b',
+      users: [account('acct-b', { name: 'Test Viewer', role: 'viewer', updatedAt: 1500 })],
+    });
+
+    expect(mergeDocuments(local, remote).users.map((u) => u.id)).toEqual(['acct-a', 'acct-b']);
+    expect(records(mergeDocuments(local, remote))).toEqual(records(mergeDocuments(remote, local)));
+  });
+
+  it('keeps the newer rename of an account, and agrees on a tie', () => {
+    const local = doc({ users: [account('acct-a', { name: 'Test Maker', updatedAt: 3000 })] });
+    const remote = doc({ device: 'dev-b', users: [account('acct-a', { name: 'Test Foreman', updatedAt: 2000 })] });
+
+    expect(mergeDocuments(local, remote).users[0]?.name).toBe('Test Maker');
+    expect(mergeDocuments(remote, local).users[0]?.name).toBe('Test Maker');
+
+    const tie = doc({ users: [account('acct-a', { name: 'Test Maker', updatedAt: 3000 })] });
+    const other = doc({ device: 'dev-b', users: [account('acct-a', { name: 'Test Foreman', updatedAt: 3000 })] });
+    expect(mergeDocuments(tie, other).users[0]?.name).toBe(mergeDocuments(other, tie).users[0]?.name);
+  });
+
+  it('honours a newer deletion of an account but not an older one', () => {
+    const local = doc({ users: [account('acct-a', { deleted: true, updatedAt: 3000 })] });
+    const remote = doc({ device: 'dev-b', users: [account('acct-a', { name: 'Test Maker', updatedAt: 2000 })] });
+    expect(mergeDocuments(local, remote).users[0]?.deleted).toBe(true);
+    expect(mergeDocuments(remote, local).users[0]?.deleted).toBe(true);
+
+    // An account deleted before the owner renamed it was not deleted knowing about the
+    // rename: the edit wins, and the account comes back rather than disappearing on a
+    // device that was behind.
+    const older = doc({ users: [account('acct-a', { deleted: true, updatedAt: 1000 })] });
+    const renamed = doc({ device: 'dev-b', users: [account('acct-a', { name: 'Test Foreman', updatedAt: 2000 })] });
+    const revived = mergeDocuments(older, renamed);
+    expect(revived.users[0]?.deleted).toBeFalsy();
+    expect(revived.users[0]?.name).toBe('Test Foreman');
+  });
+
+  it('carries a revoked device the same way as any other change', () => {
+    const local = doc({ devices: [device('dev-b', { revoked: true, updatedAt: 4000 })] });
+    const remote = doc({ device: 'dev-b', devices: [device('dev-b', { label: 'Shop phone', updatedAt: 3000 })] });
+
+    const merged = mergeDocuments(local, remote).devices[0];
+    expect(merged).toMatchObject({ revoked: true, label: 'Shop floor PC' });
+  });
+
+  // The file in the shop's repository today was written before accounts existed. A
+  // missing collection is an empty one, not a crash in the middle of a sync.
+  it('reads a state.json that has no accounts or devices in it at all', () => {
+    const fromRepo = {
+      version: 1,
+      updatedAt: 1234,
+      products: [],
+      lines: [],
+      batches: [],
+      events: [],
+      planItems: [],
+      views: [],
+      settings: settings(),
+      device: 'dev-a',
+    } as unknown as Partial<StateDocument>;
+
+    const whole = withCollections(fromRepo);
+    expect(whole.users).toEqual([]);
+    expect(whole.devices).toEqual([]);
+
+    // And it merges against a device that does have accounts without losing them.
+    const mine = doc({ users: [account('acct-a')], devices: [device('dev-a')] });
+    const merged = mergeDocuments(whole, mine);
+    expect(merged.users.map((u) => u.id)).toEqual(['acct-a']);
+    expect(merged.devices.map((d) => d.id)).toEqual(['dev-a']);
+  });
+});

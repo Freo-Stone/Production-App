@@ -207,7 +207,90 @@ export type EventAction =
   | 'product.update'
   | 'import.commit'
   | 'view.setDefault'
-  | 'sync.conflict';
+  | 'sync.conflict'
+  | 'account.create'
+  | 'account.update'
+  | 'account.disable'
+  | 'account.enable'
+  | 'account.passcode'
+  | 'account.delete'
+  | 'auth.signin'
+  | 'auth.signout'
+  | 'device.label'
+  | 'device.revoke'
+  | 'export.import'
+  | 'export.failed';
+
+/** Who did it: the account's name, and its id so a rename does not rewrite history. */
+export interface Actor {
+  id: string;
+  name: string;
+}
+
+/**
+ * A passcode is stored as a digest, never as text. PBKDF2-SHA256 with a per-account
+ * salt: the salt is what stops two people choosing the same passcode from producing
+ * the same bytes, and the iterations are what make a stolen copy of the state
+ * document expensive to guess at.
+ */
+export interface PasscodeDigest {
+  /** base64, 16 random bytes. */
+  salt: string;
+  /** base64, 32 bytes. */
+  hash: string;
+  iterations: number;
+}
+
+/* ── Accounts and devices ──────────────────────────────────────────────────── */
+
+/**
+ * Three roles, deliberately. A shop floor does not want a permission matrix: it
+ * wants the owner's word to be the only one that changes who can do what.
+ *
+ * - `owner` — everything, including adding, renaming, disabling and deleting people.
+ * - `maker` — the work: production, curing, shotblast, and the products they make.
+ * - `viewer` — reads. The board, the numbers, the jobs; changes nothing.
+ *
+ * `src/core/roles.ts` is the only place these are interpreted, so "what can a viewer
+ * do" has one answer rather than one per screen.
+ */
+export type AccountRole = 'owner' | 'maker' | 'viewer';
+
+export interface Account {
+  /** Stable id. Renaming a person must not orphan the work they logged. */
+  id: string;
+  name: string;
+  role: AccountRole;
+  passcode: PasscodeDigest;
+  /** A disabled account cannot sign in; its history stays. */
+  disabled: boolean;
+  /** Why it was disabled, for the owner's own reference. */
+  note: string;
+  createdAt: number;
+  /** Account id that created this one, or null for the first owner. */
+  createdBy: string | null;
+  updatedAt: number;
+  deleted?: boolean;
+}
+
+/**
+ * One device that has been used to sign in. This exists so the owner can see that
+ * "Sam's phone" is a thing that holds the shop's data, and can say it may not any
+ * more. Revoking signs the device out at its next sync — a real sign-out on an
+ * offline device is not a thing a client-only app can promise.
+ */
+export interface DeviceRecord {
+  id: string;
+  label: string;
+  /** Last account to sign in here, or null if it never completed a sign-in. */
+  userId: string | null;
+  signedInAt: number | null;
+  lastSeenAt: number;
+  revoked: boolean;
+  updatedAt: number;
+  deleted?: boolean;
+}
+
 
 export interface EventLog {
   id: string;
@@ -221,6 +304,11 @@ export interface EventLog {
   trays: number;
   device: string;
   actor: string;
+  /**
+   * The account id behind `actor`. Optional because the ledger already has rows
+   * written before accounts existed, and those must keep parsing.
+   */
+  actorId?: string;
   detail: string;
 }
 
@@ -278,6 +366,22 @@ export interface ViewDef {
 
 /* ── Settings ──────────────────────────────────────────────────────────────── */
 
+/**
+ * The automatic pull of the two MYOB exports. `path` is inside the **data**
+ * repository — the mirror writes those files, the app only ever reads them, and
+ * which of the two it is comes from the report title inside the workbook rather
+ * than from the filename, so renaming the mirror's output cannot mix up stock
+ * with jobs.
+ */
+export interface ExportAutoImport {
+  /** Off means the shop drops the files in by hand, exactly as before. */
+  autoImport: boolean;
+  /** How often an open, online app asks the repository whether anything changed. */
+  intervalMinutes: number;
+  locationPath: string;
+  futurePath: string;
+}
+
 export interface Settings {
   /** Single identity — every user has identical access. */
   deviceName: string;
@@ -328,6 +432,8 @@ export interface Settings {
     excludedShipVia: string[];
     /** Count cured/blasted-but-unentered stock as available. */
     countsReadyAsAvailable: boolean;
+    /** Pulling the two MYOB exports out of the repository by themselves. */
+    exports: ExportAutoImport;
   };
 
   sync: {
