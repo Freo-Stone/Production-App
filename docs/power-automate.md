@@ -21,17 +21,31 @@ maintain, nothing that can silently stop.
 **2. Power Automate mirrors them from SharePoint** (below), once MYOB writes the
 exports into a SharePoint or OneDrive folder by itself.
 
-**3. A GitHub Action pulls them on a schedule.** Same result, no premium
-connector, but it needs an Azure app registration to read SharePoint, which is
-more setup than the flow is worth unless you already have one.
+**3. A scheduled script on the office PC** mirrors them with `git push`. No premium
+connector and no SharePoint tenant, only the folder MYOB exports into — see
+`docs/mirror-on-a-pc.md` and `ops/`. It runs as the signed-in user, so the PC has to
+be on and logged in.
 
-> Both halves are working now: the mirror puts a current copy in `exports/`, and
-> any device that is open, online and holding the token reads them and imports
-> whichever changed — see `docs/exports.md`. The manual tray on **Data sources**
-> is still there for a file sitting on somebody's laptop.
+**4. A GitHub Action pulls them on a schedule.** Same result, no premium connector,
+but it needs an Azure app registration to read SharePoint, which is more setup than
+the flow is worth unless you already have one.
+
+> **Status, checked against the repository on 18/09/2026.** The *reading* half works:
+> a device that is open, online and holding a token checks every 15 minutes and imports
+> whichever file changed, and **Data sources** says so — see `docs/exports.md`. The
+> *writing* half does not: `Production-App-Data` has no `exports/` folder, and no
+> commit has ever touched one. So no flow of the kind below has ever written here — it
+> was either never built, is switched off, or fails before it reaches GitHub. Until
+> something publishes the two workbooks, every device is on the manual tray: **Data
+> sources → Import by hand**.
 >
-> What the mirror cannot do is make a closed laptop look. The newest numbers wait
-> in the repository until an app is opened.
+> (An earlier version of this file said both halves were working. That was written from
+> the app side and was wrong about the mirror. To check for yourself, in the data
+> repository: `git log --oneline -- exports/` — an empty answer means nothing has ever
+> published.)
+>
+> What no mirror can do is make a closed laptop look. The newest numbers wait in the
+> repository until an app is opened.
 
 ## Power Automate flow
 
