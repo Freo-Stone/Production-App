@@ -372,6 +372,56 @@ export class GitHubClient {
     return this.getBase64(path, this.branch);
   }
 
+  /**
+   * What a file is worth on the server right now — its sha, without its bytes.
+   *
+   * A folder watch needs this before it can compare-and-set a workbook, and it must
+   * not fetch the current copy to do it: that is several megabytes pulled down on
+   * the shop's link to prove a file it is holding is different. The plain Contents
+   * response is metadata for anything over a megabyte, so this is one small request.
+   */
+  async getEntrySha(path: string): Promise<string | null> {
+    const envelope = await this.getEnvelope(path, this.branch);
+    return envelope == null ? null : envelope.sha;
+  }
+
+  /**
+   * Compare-and-set write of a binary file — the mirrored workbook.
+   *
+   * Same shape as `putState`, and deliberately a separate method: a workbook is
+   * base64 of raw bytes, not JSON, and the two must not be confused in a call
+   * signature. `sha: null` creates the file; a wrong sha comes back as
+   * {@link ConflictError}, which for an export means another computer published a
+   * different workbook first — a thing the shop needs to hear about, not paper
+   * over.
+   */
+  async putBinaryFile(
+    path: string,
+    bytes: Uint8Array,
+    sha: string | null,
+    message: string,
+  ): Promise<{ sha: string }> {
+    const url = this.contentsUrl(path, null);
+    const payload: Record<string, unknown> = {
+      message,
+      branch: this.branch,
+      content: bytesToBase64(bytes),
+    };
+    if (sha) payload.sha = sha;
+    const res = await this.send(url, {
+      method: 'PUT',
+      headers: this.headers({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (res.status === 409) {
+      const body = await res.text().catch(() => '');
+      throw new ConflictError(`${path} changed on ${this.branch} since it was read`, extractServerSha(body, res), body);
+    }
+    if (!isOk(res)) return this.raise(res, url);
+    const written = tryJson(await res.text()) as { content?: { sha?: string }; commit?: { sha?: string } } | undefined;
+    return { sha: written?.content?.sha ?? written?.commit?.sha ?? '' };
+  }
+
   /** History of one path, newest first — the "restore from this commit" list. */
   async listCommitsFor(path: string, perPage = 20): Promise<CommitInfo[]> {
     const params = new URLSearchParams({ path, sha: this.branch, per_page: String(perPage) });

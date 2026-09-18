@@ -1,5 +1,11 @@
 # OneDrive or SharePoint → the repository, with nothing switched on
 
+**If a person is at the machine that exports MYOB anyway, `docs/folder-watch.md` is
+the better arrangement**: the app on that machine notices the workbook and commits it
+itself, with no app registration and no secret. This page is for when nobody is, or
+when the files already live in Microsoft storage and you would rather not depend on a
+PC being awake.
+
 The other mirror. Nothing runs on a PC: GitHub itself comes and fetches the two
 MYOB workbooks from your Microsoft storage four mornings an hour, using a
 read-only permission you grant once. No Power Automate licence, no always-on

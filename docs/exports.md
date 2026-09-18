@@ -5,8 +5,11 @@ Two files carry the shop's numbers: `location.xlsx` (stock on hand) and
 dropped onto the Sources screen. Now a device that is open, signed in as a maker
 or the owner, and holding the repository token goes and gets them.
 
-`docs/power-automate.md` covers how the files get **into** the repository. This
-is the other half: how they get from there onto the screen.
+`docs/power-automate.md` covers how the files get **into** the repository, and
+`docs/folder-watch.md` covers the way that needs no repository round trip at all: the
+computer that exports MYOB watches its own folder, and is a minute ahead of everyone.
+This page is the half that matters on every other computer: how the files get from
+the repository onto the screen.
 
 ## How it decides that anything changed
 

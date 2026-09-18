@@ -1097,7 +1097,7 @@ blast, enter, write off, undo — had been declared in the type and never writte
 six rounds of screens that needed to be worth asking again, so it was counted rather
 than assumed.
 
-**All 27 declared `EventAction`s have a writer.** There is no action in the vocabulary
+**All 28 declared `EventAction`s have a writer.** There is no action in the vocabulary
 that nothing can log, which means the Production log's family chips can never be the
 kind of lie they were — a filter for a thing the app is incapable of recording.
 
@@ -1111,7 +1111,15 @@ kind of lie they were — a filter for a thing the app is incapable of recording
 | `patchProduct`, `bulkPatchProducts`, `moveProductInList`, `applyCsvUpdates` | Products, CSV | `product.update`, `rank.change` |
 | accounts and devices | People | six `account.*`, two `auth.*`, `device.label`, `device.revoke` |
 | `importFlow`, `exportSync`, `syncEngine` | Data sources, sync | `import.commit`, `export.import`, `export.failed`, `sync.conflict` |
+| `folderPublish` | set up on **Settings**, watched on **Data sources** — on the one computer that has the folder | `export.publish`, and `export.failed` for a file it held back |
 | view defaults | any table's ⋯ menu | `view.setDefault` |
+
+The folder watch is set up on Settings and *spoken about* on Data sources only once it
+exists. That split is deliberate and it is enforced by `e2e/layout.spec.ts`: the data
+screen's room belongs to its table, so a watch that has never been pointed at a folder
+renders nothing there at all. The screen that a person opens to read 2,691 rows is not
+the place to advertise a feature they have not switched on; Settings, where the
+repository and the token are connected, is.
 
 **Two readers had no caller**, counted in the same pass. `planItemsForCode` was written
 with the plan and is redundant with `scheduleSource`, which already returns every plan

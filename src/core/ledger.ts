@@ -77,6 +77,9 @@ export const LEDGER_ACTIONS: Record<EventAction, LedgerActionMeta> = {
   'plan.cancel': { family: 'floor', label: 'Taken off the plan' },
   'import.commit': { family: 'stock', label: 'Export loaded' },
   'export.import': { family: 'stock', label: 'Export picked up' },
+  // The other half of the same story: one PC sends, the others pick up. Both land
+  // in the stock family because both are about where today's numbers came from.
+  'export.publish': { family: 'stock', label: 'Export sent to the shop' },
   'export.failed': { family: 'stock', label: 'Export could not be used' },
   'product.update': { family: 'stock', label: 'Product changed' },
   'rank.change': { family: 'stock', label: 'Products reordered' },

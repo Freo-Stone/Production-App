@@ -14,22 +14,29 @@ reads them and never writes them.
 
 Start at the top. Move down only when the one above is costing you time.
 
-**1. Drop them in by hand.** MYOB exports → repository → `exports/` →
+**1. Let the computer that exports MYOB send the file** — the folder watch, in
+`docs/folder-watch.md`. You point the app at the folder MYOB exports into, once, on
+that machine; it notices the new workbook within a minute, imports it there and
+commits it to `exports/` for everyone else. No Microsoft app registration, no secret,
+no flow, nothing installed. Its one condition is the one the others are also living
+with anyway: the app has to be open on the machine that pressed Export.
+
+**2. Drop them in by hand.** MYOB exports → repository → `exports/` →
 **Add file** → **Upload files** → Commit. Two drags, thirty seconds. Nothing to
 maintain, nothing that can silently stop.
 
-**2. GitHub fetches them from OneDrive or SharePoint on a schedule**, with nothing
+**3. GitHub fetches them from OneDrive or SharePoint on a schedule**, with nothing
 switched on and no premium licence — built, at `ops/github-pull-exports.yml`, and
 walked through in `docs/onedrive-to-github.md`. It needs one read-only Microsoft app
 registration and one secret: more clicking at the start than the flow, and nothing
 afterwards that lives on a machine you own.
 
-**3. A scheduled script on the office PC** mirrors them with `git push`. No premium
+**4. A scheduled script on the office PC** mirrors them with `git push`. No premium
 connector and no SharePoint tenant, only the folder MYOB exports into — see
 `docs/mirror-on-a-pc.md` and `ops/`. It runs as the signed-in user, so the PC has to
 be on and logged in.
 
-**4. Power Automate mirrors them from SharePoint** (below), if Microsoft is where you
+**5. Power Automate mirrors them from SharePoint** (below), if Microsoft is where you
 would rather keep it. It needs the premium HTTP connector, and the flow is seven
 steps of expressions.
 

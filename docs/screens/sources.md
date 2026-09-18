@@ -15,6 +15,7 @@ read what was actually imported.
 | Block | What it is |
 | --- | --- |
 | The import line, at the top right | the automatic-import switch, the interval, what each of the two files last did, and **Details** for the paths in the repository. `docs/exports.md` |
+| The folder line, under it | whether *this* computer is watching a MYOB folder, what the last look decided about each file, and **Details** for the two names, the age limit and the folder itself. `docs/folder-watch.md` |
 | Import by hand | one line, closed. Open it and the tray is there: drop the workbooks, see which report each one is, load them |
 | Locations counted as stock | one line, closed, saying how many of the groups are counted. Open it for the chips |
 | The mirrors | one card, two tabs — the stock rows and the job lines exactly as exported — with everything above it that is not the table |
@@ -76,6 +77,34 @@ over the weekend imports on Monday morning.
 A viewer sees the same statuses with nothing to change, because the answer is
 useful and the controls are not theirs. They are not offered the interval either:
 their own write would be refused anyway.
+
+## The folder line
+
+The other end of the same pipe. Everything above this screen is about files coming
+*in* from the repository; this line is about a file leaving *from the folder on this
+machine's own disk*, which is the only way today's numbers get there without somebody
+dragging them.
+
+It is a line for the same reason the import line is: the screen is opened to read the
+table. On the line, the state — **No folder yet**, **Waiting for one click**,
+**Cannot watch folders**, **Folder refused**, or **Watching** with the folder's own
+name and the interval — plus when the last file went out. **Look now** does not wait
+for the next minute; **Pause** stops it here and remembers the folder; **Details**
+holds the two file names, the age limit, one line per file saying what the last look
+made of it, and **Forget this folder**.
+
+Three of those states exist because only a hand on this keyboard can fix them:
+pointing the browser at the folder, clicking once after a browser restart (Windows
+makes every web page ask again; the app cannot do it for you), and telling MYOB to
+save into that folder. **Cannot watch folders** is not an error: Firefox and Safari
+will not let a web page see a disk at all, so on those browsers the line says so and
+the rest of the app is untouched.
+
+When a folder holds a file that *looks* like the export but is not named what
+Settings says, the line says **Named differently** and offers the file as a button.
+It is never used on its own: guessing wrong here overwrites the wrong mirror on every
+computer at once, and the shop finds out when the numbers look odd. A viewer sees all
+of this and nothing to press.
 
 ## Import by hand
 

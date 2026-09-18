@@ -15,6 +15,7 @@ import { SignIn } from '@/screens/SignIn';
 import { Sources } from '@/screens/Sources';
 import { navigate, useRoute } from '@/app/router';
 import { useExportWatch } from '@/app/exportWatch';
+import { useFolderWatch } from '@/app/folderWatch';
 import { reconcileSession, useSession } from '@/app/session';
 import { can as roleAllows, ROLE_LABEL, type Capability } from '@/core/roles';
 import { seedIfEmpty } from '@/data/db';
@@ -100,6 +101,11 @@ export default function App() {
   // It lives here rather than on the Sources screen because the point is that the
   // data turns up whether or not anyone is looking at the screen that talks about it.
   useExportWatch(checked && userId !== null);
+
+  // And the other direction: this computer's own MYOB folder, sent out to the shop
+  // the minute it changes. Same reason it lives here — it happens while the person
+  // is on the Production screen, not on the one that talks about folders.
+  useFolderWatch(checked && userId !== null);
 
   if (!checked) {
     return (

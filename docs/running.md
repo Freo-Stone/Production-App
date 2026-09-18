@@ -74,6 +74,7 @@ reread, so no device silently overwrites another. `docs/sync.md` walks each part
 | `running.md` | This page. |
 | `sync.md` | How a device joins, and how to check each part is working. |
 | `accounts.md` | Logins, the three roles, which devices are allowed, and honestly what a passcode in an app with no server is worth. |
+| `folder-watch.md` | The PC that exports MYOB sends the file itself: the folder watch, three minutes to set up, Chromium or Edge only. |
 | `power-automate.md` | Getting the MYOB exports into the repository. |
 | `mirror-on-a-pc.md` | The same job without Power Automate: two scripts and Windows Task Scheduler on the office PC. |
 | `onedrive-to-github.md` | GitHub fetches the exports from OneDrive or SharePoint itself, on a schedule, with no PC switched on. |

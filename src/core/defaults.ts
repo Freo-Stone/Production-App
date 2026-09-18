@@ -54,12 +54,23 @@ export const DEFAULT_SETTINGS: Settings = {
     excludedShipVia: [],
     countsReadyAsAvailable: true,
     exports: {
-      // The mirror in `docs/power-automate.md` writes these two paths. The app
-      // reads them and stops; it never writes to `exports/`.
+      // The mirror in `docs/power-automate.md`, or a PC watching a folder below,
+      // writes these two paths. Reading them never writes anything back.
       autoImport: true,
       intervalMinutes: 15,
       locationPath: 'exports/location.xlsx',
       futurePath: 'exports/future.xlsx',
+      folder: {
+        // Off until somebody on this computer points the app at a folder — a
+        // device cannot watch a folder it has never been shown.
+        enabled: false,
+        intervalMinutes: 1,
+        locationFile: 'location.xlsx',
+        futureFile: 'future.xlsx',
+        // Same floor as `ops/mirror-exports.ps1`: an old export must not be
+        // published as though it were today's.
+        maxAgeHours: 30,
+      },
     },
   },
 

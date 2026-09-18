@@ -115,6 +115,35 @@ async function writeExportStates(states: ExportStateMap): Promise<void> {
   await db.meta.put({ key: EXPORT_STATE_KEY, value: states });
 }
 
+/**
+ * Say "this device already has these bytes", from somewhere other than the pull.
+ *
+ * A PC that publishes a workbook out of its folder has already imported it — from
+ * the file on its own disk, which is newer than anything in the repository at that
+ * second. Without this, the next automatic check would fetch the copy that was
+ * there *before* the publish, parse two megabytes again, and write an older
+ * snapshot over the one it just made. The sha we were given when we wrote the file
+ * is the sha the pull compares against, so one line here stops all of that.
+ */
+export async function recordExportImport(
+  kind: ExportKind,
+  written: { path: string; sha: string; detail: string; bytes: number; rows: number | null; at: number },
+): Promise<void> {
+  const states = await readExportStates();
+  states[kind] = {
+    kind,
+    path: written.path,
+    sha: written.sha,
+    status: 'imported',
+    detail: written.detail,
+    bytes: written.bytes,
+    rows: written.rows,
+    checkedAt: written.at,
+    importedAt: written.at,
+  };
+  await writeExportStates(states);
+}
+
 /** `exports/location.xlsx` → `location.xlsx`. The parser only wants a name to quote. */
 function fileNameOf(path: string): string {
   const parts = path.split('/');

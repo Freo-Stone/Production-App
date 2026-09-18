@@ -15,6 +15,7 @@ import { DataTable, type ColumnDef } from '@/ui/DataTable';
 import { ViewToolbar } from '@/ui/DataTable/ViewToolbar';
 import { Icon } from '@/ui/Icon';
 import { AutoImportBar } from './SourcesAutoImport';
+import { FolderWatchLine } from './SourcesFolder';
 import {
   Button,
   Card,
@@ -283,8 +284,12 @@ export function Sources() {
           the locations line says how many groups are counted. What stays here is the
           one line with a decision in it. */}
       {settings && exportStates ? (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-end justify-end gap-x-3 gap-y-1.5">
           <AutoImportBar settings={settings} states={exportStates} canWrite={canImport} blocker={blocked} />
+          {/* The other end of the same pipe: files coming in from the repository, and
+              the file this machine's own MYOB just wrote going out to it. One screen,
+              because they are the same question asked from two computers. */}
+          <FolderWatchLine settings={settings} canWrite={canImport} />
         </div>
       ) : null}
 

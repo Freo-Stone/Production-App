@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getDeviceToken, setDeviceToken, testConnection, type ConnectionTest } from '@/data/auth';
 import { getSettings, saveSettings } from '@/data/db';
+import { can } from '@/data/principal';
+import { FolderWatchLine } from './SourcesFolder';
 import { Button, Card, Chip, Field, NumberInput, Select, TextInput, Tile, Toggle, toast } from '@/ui/primitives';
 
 /**
@@ -219,6 +221,17 @@ export function Settings() {
           The token lives in this browser only. It is not part of the settings that sync, so it never reaches the
           repository or its history — but it is also why each device has to be given one.
         </p>
+      </Card>
+
+      {/* The folder MYOB exports into, on this machine. Set up here rather than on
+          the data screen, because this is where a device is connected to anything —
+          and because that screen's room belongs to its table, so its own line only
+          appears once the watch is running or needs a click. */}
+      <Card
+        title="This computer's MYOB folder"
+        subtitle="The one machine that exports MYOB can send the workbook to the shop itself, within a minute of Export being pressed."
+      >
+        <FolderWatchLine settings={settings} canWrite={can('sources.import')} variant="card" />
       </Card>
 
       <Card

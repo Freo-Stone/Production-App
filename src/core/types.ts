@@ -222,6 +222,7 @@ export type EventAction =
   | 'device.label'
   | 'device.revoke'
   | 'export.import'
+  | 'export.publish'
   | 'export.failed';
 
 /** Who did it: the account's name, and its id so a rename does not rewrite history. */
@@ -383,6 +384,31 @@ export interface ExportAutoImport {
   intervalMinutes: number;
   locationPath: string;
   futurePath: string;
+  /** Watching a folder on this PC, and publishing whatever changes. */
+  folder: ExportFolderWatch;
+}
+
+/**
+ * The folder this computer watches, and publishes from.
+ *
+ * A **per-computer** choice. The handle the browser was given lives in this browser
+ * only (`data/folderAccess.ts`), so a device that has never picked a folder is not
+ * watching one, and no setting saved on another device can make it so. The two
+ * names below are what the shop calls the files; MYOB saves whatever was typed in
+ * its save box, so when these names are not in the folder the screen offers what it
+ * does hold rather than failing quietly.
+ */
+export interface ExportFolderWatch {
+  /** Off until somebody presses "Choose the folder" on this computer. */
+  enabled: boolean;
+  /** How often an open app looks at the folder. One minute is the floor. */
+  intervalMinutes: number;
+  /** The stock workbook's name in that folder. */
+  locationFile: string;
+  /** The jobs workbook's name in that folder. */
+  futureFile: string;
+  /** Older than this, it is not published as though it were current. */
+  maxAgeHours: number;
 }
 
 export interface Settings {
