@@ -36,12 +36,15 @@ export default defineConfig({
         start_url: '.',
         display: 'standalone',
         orientation: 'any',
+        // The splash is the app's own first paint, so it uses the canvas the app
+        // opens on. The chrome — an installed window's title bar, a phone's status
+        // bar — is the shop's blue from the logo.
         background_color: '#0d1117',
-        theme_color: '#0d1117',
+        theme_color: '#0076c0',
         // Sizes are not decoration here. Android and desktop Chrome will not
         // offer an install without a 192px and a 512px PNG, and the maskable pair
         // exists so a launcher that crops to a circle or squircle clips the
-        // background rather than the pavers (see scripts/make-icons.py). iOS reads
+        // background rather than the blocks (see scripts/make-brand.py). iOS reads
         // the apple-touch-icon link in index.html and ignores this list.
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

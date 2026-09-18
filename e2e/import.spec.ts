@@ -124,6 +124,10 @@ test.describe('MYOB import', () => {
     // Reload: the layout belongs to this person and must come back, arrow and all.
     await page.reload();
     await signIn(page);
+    // The export is parsed again in the page after a reload, and with two workers
+    // that is not a five-second job. Every assertion below is about a table, so the
+    // wait belongs here rather than in each of them: see waitForStockTable.
+    await waitForStockTable(page);
     await expect(codeColumn).toHaveAttribute('aria-sort', secondArrow ?? '');
     await expect(firstRow).toContainText(secondOrder);
   });
@@ -156,6 +160,10 @@ test.describe('MYOB import', () => {
 
     await page.reload();
     await signIn(page);
+    // The export is parsed again in the page after a reload, and with two workers
+    // that is not a five-second job. Every assertion below is about a table, so the
+    // wait belongs here rather than in each of them: see waitForStockTable.
+    await waitForStockTable(page);
     await expect(page.locator('.dt-head')).toContainText('Item No.');
     await expect
       .poll(async () => (await columnWidths(page))[0], { message: 'saved width comes back' })
@@ -171,6 +179,10 @@ test.describe('MYOB import', () => {
 
     await page.reload();
     await signIn(page);
+    // The export is parsed again in the page after a reload, and with two workers
+    // that is not a five-second job. Every assertion below is about a table, so the
+    // wait belongs here rather than in each of them: see waitForStockTable.
+    await waitForStockTable(page);
     await expect(page.locator('[role="columnheader"]', { hasText: 'Category' })).toHaveCount(0);
   });
 
@@ -188,6 +200,10 @@ test.describe('MYOB import', () => {
     await expect(hq).toHaveAttribute('class', /text-ink3/);
     await page.reload();
     await signIn(page);
+    // The export is parsed again in the page after a reload, and with two workers
+    // that is not a five-second job. Every assertion below is about a table, so the
+    // wait belongs here rather than in each of them: see waitForStockTable.
+    await waitForStockTable(page);
     // The line comes back closed, so the answer is read where it is kept: open it.
     await openLocations(page);
     await expect(hq).toHaveAttribute('class', /text-ink3/);

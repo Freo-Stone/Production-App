@@ -28,20 +28,36 @@
   --color-ink: #e8edf2;
   --color-ink2: #a2b3c2;
   --color-ink3: #6d7f8f;
-  --color-accent: #ff8b3d;
-  --color-accentink: #1a1206;
+
+  /* The shop's own colours, sampled from brand/freo-stone-paving.jpg by
+     scripts/make-brand.py: the block blue #0076C0 and the red of its corner blocks
+     #EF3E34. The third colour in the logo is the charcoal of the PAVING foot,
+     #231F20, which is already what this theme's darks are made of. Everything else
+     in this file is a neutral or a status colour.
+     `test/brand.test.ts` holds two things over this: that the blues and reds below
+     are still the logo's hue, and that anything carrying text clears 4.5:1 on the
+     canvas it sits on. */
+  --color-brandred: #ef3e34;
+  /* The logo's blue at full strength measures 3.9:1 on this canvas — fine for a
+     block of colour, not fine for the 12px labels, links and focus outlines the
+     accent is used for. This is the same hue, lifted until it reads outdoors. */
+  --color-accent: #3d9adc;
+  --color-accentink: #08202e;
 
   /* Planning status: A = short, B = only enough if you count curing stock */
-  --color-short: #ff4d6d;
-  --color-shortbg: rgba(255, 77, 109, 0.16);
+  --color-short: var(--color-brandred);
+  --color-shortbg: rgba(239, 62, 52, 0.16);
   --color-curing: #2fbf71;
   --color-curingbg: rgba(47, 191, 113, 0.18);
   --color-warn: #ffb020;
   --color-warnbg: rgba(255, 176, 32, 0.16);
-  --color-info: #4aa3ff;
-  --color-infobg: rgba(74, 163, 255, 0.16);
+  --color-info: #3d9adc;
+  --color-infobg: rgba(61, 154, 220, 0.16);
 
-  /* Production stages */
+  /* Production stages. Deliberately not the brand palette: seven stages all in two
+     brand colours would be unreadable, and the matrix that uses them is not built
+     yet, so inventing a seven-step brand scale now would be a guess. They are here
+     when the board exists. */
   --color-stage-green: #a78bfa;
   --color-stage-curing: #4aa3ff;
   --color-stage-awaiting: #ffb020;
@@ -69,17 +85,27 @@ html[data-theme='light'] {
   --color-linestrong: #b6c2ce;
   --color-ink: #10161d;
   --color-ink2: #4a5a6a;
-  --color-ink3: #7b8794;
-  --color-accent: #d2601a;
-  --color-accentink: #fff6ee;
-  --color-short: #c8102e;
-  --color-shortbg: rgba(200, 16, 46, 0.1);
+  /* The faintest label the app has, and the one that used to fail a contrast audit:
+     #7B8794 on this canvas is 3.4:1. It carries the sub-line under a heading and the
+     third line of a fact, which is real text that has to be readable in daylight, so
+     it comes up to 4.9:1. */
+  --color-ink3: #626d79;
+  /* On paper the blue needs almost no adjusting — the logo's own #0076C0 is 4.8:1 on
+     white — but this theme's canvas is a very light grey, not white, and there the
+     logo's blue lands at 4.45:1, just under. One step darker and it clears at 4.8:1,
+     at a blue nobody can tell from the logo's. The red has to come further down: the
+     logo's red on this paper is 3.6:1, which is a block of colour, not text. */
+  --color-brandred: #c22b22;
+  --color-accent: #0070b8;
+  --color-accentink: #ffffff;
+  --color-short: var(--color-brandred);
+  --color-shortbg: rgba(194, 43, 34, 0.1);
   --color-curing: #137a41;
   --color-curingbg: rgba(19, 122, 65, 0.13);
   --color-warn: #8a5a00;
   --color-warnbg: rgba(138, 90, 0, 0.12);
-  --color-info: #0b62b5;
-  --color-infobg: rgba(11, 98, 181, 0.12);
+  --color-info: #0070b8;
+  --color-infobg: rgba(0, 112, 184, 0.1);
 }
 
 html {

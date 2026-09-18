@@ -17,3 +17,6 @@ test/fixtures/real/
 
 # Numbers derived from the real exports: the shop's own stock and sales.
 test/local/
+
+# Screenshots taken to look at a change; not part of the app.
+shots/

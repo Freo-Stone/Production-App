@@ -27,6 +27,7 @@ pnpm run dev        # http://localhost:5173
 pnpm run build      # dist/, servable from any static host including GitHub Pages
 pnpm test           # unit + jsdom component tests
 pnpm run e2e        # playwright: desktop, phone, firefox
+pnpm run brand      # re-draw the icons and the in-app art from the shop's logo file
 ```
 
 Four checks sit outside the unit and browser suites, because they need a built or
@@ -51,6 +52,8 @@ program.
 - `docs/exports.md` — how the app pulls those exports back out and imports them
   on its own, and what that cannot do without a server.
 - `docs/screens/` — what each screen is for and who owns which field.
+- `docs/brand.md` — the shop's own logo, the four colours measured out of it, and
+  everything the build draws from them.
 
 ## The shape of a day
 

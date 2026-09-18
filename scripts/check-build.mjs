@@ -136,6 +136,19 @@ if (check(existsSync(manifestPath), 'manifest exists')) {
     );
     check(big.length > 0, 'manifest has an installable PNG of at least 512px');
     check(maskable.length > 0, 'manifest offers a maskable icon for cropped launchers');
+    // An installed window's title bar and a phone's status bar wear the shop's blue,
+    // out of its logo. The splash is the canvas the app opens on instead, so
+    // installing does not flash a colour the app never actually shows.
+    check(
+      (manifest.theme_color ?? '').toLowerCase() === '#0076c0',
+      'manifest dresses the installed chrome in the brand blue',
+      manifest.theme_color,
+    );
+    check(
+      (manifest.background_color ?? '').toLowerCase() === '#0d1117',
+      'manifest splash is the colour the app opens on',
+      manifest.background_color,
+    );
   }
 }
 
@@ -175,6 +188,45 @@ check(
   forbidden.length === 0,
   'build output contains no shop data',
   forbidden.length ? forbidden.map((p) => p.slice(root.length + 1)).join(', ') : `${files.length} files, none of them data`,
+);
+
+// 5. The brand. The tab icon and the launcher icons are drawn from the shop's own
+//    logo file by scripts/make-brand.py, and the logo on the sign-in screen is a
+//    bundled asset. Both fail in ways nothing else notices: a hand-edited icon keeps
+//    working, and a component that stops importing its image simply stops shipping it.
+const faviconPath = join(root, 'favicon.svg');
+if (check(existsSync(faviconPath), 'the tab icon is in the build')) {
+  const icon = readFileSync(faviconPath, 'utf8');
+  const fills = [...icon.matchAll(/fill="#([0-9a-f]{6})"/gi)].map((m) => `#${m[1]?.toLowerCase()}`);
+  check(fills.includes('#0076c0'), 'the tab icon is drawn in the brand blue', fills.join(' ') || 'no fills');
+  check(fills.includes('#ef3e34'), 'the tab icon is drawn in the brand red', fills.join(' ') || 'no fills');
+  // An SVG with a viewBox and no width/height reports no size to the page, which is
+  // how an icon that loaded correctly can be drawn at nothing.
+  check(
+    icon.includes('width="64"') && icon.includes('height="64"'),
+    'the tab icon carries its own size',
+    icon.slice(0, icon.indexOf('>')).replace(/\n.*/s, ''),
+  );
+}
+// The logo and the header mark are both under the bundler's inline limit, so today
+// they travel inside the JavaScript as data URIs and no file is emitted for either.
+// That is checked here rather than assumed, because the other way this fails is the
+// quiet one: a component stops importing its picture and the build simply ships
+// without one. Either form passes, so moving over the inline limit is not a failure.
+const bundle = files
+  .filter((p) => p.endsWith('.js'))
+  .map((p) => readFileSync(p, 'utf8'))
+  .join('\n');
+const asFile = (pattern) => files.some((p) => pattern.test(p.slice(root.length)));
+check(
+  bundle.includes('data:image/png;base64,') || asFile(/\/logo-[^/]+\.png$/),
+  'the shop logo reaches the bundle, inlined or as a file',
+  'nothing in the build looks like the logo',
+);
+check(
+  bundle.includes('data:image/svg+xml') || asFile(/\/logo-mark-[^/]+\.svg$/),
+  'the header mark reaches the bundle, inlined or as a file',
+  'nothing in the build looks like the mark',
 );
 
 for (const line of [...notes, ...failures]) console.error(line);

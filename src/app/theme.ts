@@ -29,9 +29,11 @@ export function applyTheme(preference: ThemePreference): void {
   const root = document.documentElement;
   root.dataset.theme = dark ? 'dark' : 'light';
   root.style.colorScheme = dark ? 'dark' : 'light';
-  document
-    .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', dark ? '#0d1117' : '#f4f6f8');
+  // The strip the app sits in — a browser tab's frame, an installed window's title
+  // bar, a phone's status bar — wears the shop's blue, the same colour the manifest
+  // gives an installed app. It does not follow the theme: it is the one piece of
+  // chrome that is the shop rather than the screen, and white icons on it read fine.
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0076c0');
 }
 
 const ORDER: ThemePreference[] = ['dark', 'light', 'system'];

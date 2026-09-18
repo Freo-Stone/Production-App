@@ -15,7 +15,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
-import { Brand } from '@/app/Brand';
+import { BrandLogo } from '@/app/Brand';
 import { legacyName, useSession } from '@/app/session';
 import { passcodeAccepted, passcodeAdvice } from '@/core/passcode';
 import { ROLE_SUMMARY } from '@/core/roles';
@@ -195,7 +195,7 @@ export function SignIn(): React.ReactElement {
   return (
     <Frame>
       <div className="w-full max-w-sm space-y-4">
-        <Brand />
+        <BrandLogo />
         <p className="text-sm text-ink3">Who is on this device?</p>
         <div className="space-y-2">
           {people.map((person) => (
@@ -342,7 +342,7 @@ function OwnerSetup({
 
   return (
     <div className="w-full max-w-sm space-y-4">
-      <Brand />
+      <BrandLogo />
       <div>
         <h1 className="text-lg font-700">Set up the shop</h1>
         <p className="text-sm text-ink3">

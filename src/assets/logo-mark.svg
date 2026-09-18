@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Freo Stone Paving">
-  <!-- The browser tab and the manifest's scalable icon. Blue bars with red corners on a charcoal foot, measured from
+  <!-- The tile in the app's own header, where 28px is all there is. Blue bars with red corners on a charcoal foot, measured from
        brand/freo-stone-paving.jpg by scripts/make-brand.py. No lettering: it turns
        to mush at the 16px a browser tab offers, which is where these are used. -->
   <rect x="0.00" y="0.00" width="7.91" height="8.09" fill="#EF3E34" />

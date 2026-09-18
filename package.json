@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "icons": "python3 scripts/make-icons.py",
+    "brand": "python3 scripts/make-brand.py",
     "check:build": "node scripts/check-build.mjs",
     "check:worker": "node scripts/probe-service-worker.mjs",
     "probe:typing": "node scripts/probe-typing.mjs",

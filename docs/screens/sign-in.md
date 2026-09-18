@@ -42,7 +42,9 @@ a digest stored with the account, on this device.
 
 ## What is on the frame
 
-The shop's name and mark, so a person can tell they are in the shop's app rather
-than a lookalike; and on the first-run screen, the passcode advice — what a short
-code costs, since the digests live inside the shop's own shared file.
+The shop's own logo, at 64px, so a person arriving at a device can tell they are in
+the shop's app rather than a lookalike — it is the one screen where the lettering has
+room to be read, and everywhere else the block device from the same artwork carries
+it (`docs/brand.md`). On the first-run screen there is also the passcode advice —
+what a short code costs, since the digests live inside the shop's own shared file.
 `docs/accounts.md` explains why the advice is advice and not a rule.

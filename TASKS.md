@@ -401,6 +401,54 @@ repository either.
 
 
 
+## The shop's own colours are in the app · done
+
+The logo arrived with one instruction: *"this is our logo, use this and the colours
+throughout the app"*. It is kept in the repository at
+`brand/freo-stone-paving.jpg`, and `scripts/make-brand.py` measures it rather than
+copying it around — the four colours that are actually in it (block blue `#0076C0`
+at 17% of the artwork, corner red `#EF3E34` at 2.3%, the charcoal of the PAVING foot
+at 7.8%, the card white at 19.6%) and the eight rectangles the device is made of.
+`docs/brand.md` is the reference; this is what changed and how it is held.
+
+The rule the whole thing hangs on: **a logo is ink on white paper and an app is light
+on dark in daylight, so lightness moves and hue does not.** Every blue in
+`src/styles/theme.css` is within 4° of the logo's blue and every red within 4° of its
+red; the lightness steps are where a screen needs them, and each one is written down
+beside the colour with the ratio it was measured at — the logo's blue is 3.9:1 on the
+dark canvas, so the dark accent is the same hue lifted to 6.2:1; the logo's blue is
+4.45:1 on this light canvas, so the light accent is one step darker at 4.8:1; the
+logo's red reads at 4.9:1 on dark and is used exactly there, and comes down to
+`#C22B22` at 5.3:1 on paper. Anything carrying text clears 4.5:1 on the canvas it
+actually sits on, which caught the light theme's faintest grey at 3.4:1 and brought
+it to 4.9:1. The stage colours and the neutrals are deliberately *not* brand: seven
+production stages in two brand colours would be unreadable, and the board that uses
+them is not built yet.
+
+What it looks like: the sign-in screen carries the logo itself at 64px — the one
+place the lettering has room to be read — and every other surface carries the block
+device without lettering, at 28px in the header and in the tab, and as the icons an
+installed app is built from. The launcher icons are the logo's white card with the
+device inside it rather than blocks bleeding to an edge, so no launcher and no
+rounding can cut one in half; the maskable pair sits at 56% of the canvas, which is
+where a square device's corners stay inside the safe circle (at the 62% this started
+at, the red corner blocks lost their points). The strip the app sits in — a tab's
+frame, an installed window's title bar, a phone's status bar — is the shop's blue in
+both themes, in the page and in the manifest; the splash stays the canvas the app
+opens on.
+
+Held by `test/brand.test.ts` (8 tests: the logo measures as four colours, both themes
+stay on those hues, the lightness moves the way the rule says, every text colour
+clears AA on its own canvas, the artwork files exist, the tab icon is drawn in the
+logo's colours and nothing else, the header tile and the tab icon are byte-identical
+drawings), `e2e/brand.spec.ts` (3 tests × 3 projects: the logo *decodes* rather than
+merely being present, the header mark decodes too, and everything the browser and an
+installer are told over HTTP is the shop's blue), and 6 new checks in
+`scripts/check-build.mjs`, which now runs 33. The old `scripts/make-icons.py` is
+gone; `pnpm run brand` is the one command, and it stops with what it measured if the
+logo it is handed has different colours in it than the ones it draws.
+
+
 ## M12 — The sync loop · planned, not built
 
 `src/data/syncEngine.ts` is finished and tested — pull, merge, protect local
