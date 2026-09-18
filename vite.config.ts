@@ -14,7 +14,14 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: [
+        'favicon.svg',
+        'apple-touch-icon.png',
+        'icon-192.png',
+        'icon-512.png',
+        'maskable-192.png',
+        'maskable-512.png',
+      ],
       manifest: {
         name: 'Freo Stone Production',
         short_name: 'Freo Prod',
@@ -24,9 +31,18 @@ export default defineConfig({
         orientation: 'any',
         background_color: '#0d1117',
         theme_color: '#0d1117',
+        // Sizes are not decoration here. Android and desktop Chrome will not
+        // offer an install without a 192px and a 512px PNG, and the maskable pair
+        // exists so a launcher that crops to a circle or squircle clips the
+        // background rather than the pavers (see scripts/make-icons.py). iOS reads
+        // the apple-touch-icon link in index.html and ignores this list.
         icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: 'maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+          { src: 'apple-touch-icon.png', sizes: '180x180', type: 'image/png', purpose: 'any' },
         ],
       },
       workbox: {

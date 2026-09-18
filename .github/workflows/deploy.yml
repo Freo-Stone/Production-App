@@ -2,10 +2,11 @@
 #
 # Two things about this workflow matter more than the rest:
 #
-# 1. Only `dist/` is uploaded. This repository also holds `state/state.json` and
-#    the mirrored MYOB exports; those are private data and must never become the
-#    Pages artifact. Publishing the repository contents instead of the build
-#    output would put customer orders on the public internet.
+# 1. Only `dist/` is uploaded, and `scripts/check-build.mjs` proves the build output
+#    contains nothing else before it is published. The shop's state document and the
+#    MYOB exports live in the private `Production-App-Data` repository, out of reach
+#    of this workflow — but the artifact is the one thing this repository puts on the
+#    public internet, so the rule is enforced by a failing build, not by a comment.
 #
 # 2. The build is gated on the tests. A red main does not reach the shop floor.
 #
@@ -58,17 +59,13 @@ jobs:
           VITE_BASE: ${{ env.BASE }}
         run: pnpm run build
 
-      - name: Built page points at the site base
-        # Cheaper than opening a browser: the entry script, the stylesheet and
-        # the manifest must all sit under the prefix, and the service worker has
-        # to exist or the installed app never updates.
-        run: |
-          grep -q "src=\"${BASE}assets/" dist/index.html
-          grep -q "href=\"${BASE}assets/" dist/index.html
-          grep -q "href=\"${BASE}manifest.webmanifest" dist/index.html
-          test -f dist/sw.js
-          test -f dist/registerSW.js
-          echo "checked $BASE against dist/index.html"
+      - name: Check the build before publishing it
+        # Resolves every reference the page and the manifest actually make, rather
+        # than grepping for a few strings. A manifest that returns 200 and lists an
+        # icon the build never shipped is invisible in a browser tab and enough to
+        # stop a phone offering the install — which is how this was written, after
+        # the manifest went out with only an SVG and a 180px iOS icon in it.
+        run: node scripts/check-build.mjs "$BASE"
 
       - uses: actions/upload-pages-artifact@v3
         with:

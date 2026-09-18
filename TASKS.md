@@ -24,6 +24,9 @@ that has not happened yet.
    the repository, the branch and a token, and Test connection answers with a real
    reason. The token has its own IndexedDB key, never a field inside `Settings`, so
    it cannot travel into `state/state.json` and into the shared history.
+   **Hosting** — also **done**: `https://freo-stone.github.io/Production-App/`
+   publishes from `main`, with the tests gating the build and a build check that
+   resolves everything the page and manifest point at.
 2. **Sync loop** — start `createSyncEngine` when a token exists, feed its status
    to the header pill, flush on Save and on reconnect. Two devices then share
    production without either overwriting the other.
@@ -158,7 +161,7 @@ the rest of the keys — cure defaults, the five lines and tray sizes, which sto
 locations count, default view per screen. Most already exist in
 `core/defaults.ts`; the screen does not.
 
-## M9 — Hosting and the mirrored exports · partly done
+## M9 — Hosting · done. The mirrored exports · still a manual drop
 
 Two repositories, because free hosting and private data do not share a box:
 `Freo-Stone/Production-App` is **public** (source, tests, deploy workflow, the
@@ -180,10 +183,11 @@ green with them present (170).
 
 Done:
 
-- `.github/workflows/deploy.yml` — tests gate the build, then `dist/` goes to
-  Pages under the repository's own base path. The five checks the workflow makes
-  on the built page were each run against a real `VITE_BASE=/Production-App/`
-  build before being written down.
+- `.github/workflows/deploy.yml` — tests gate the build, `scripts/check-build.mjs`
+  checks the output, then `dist/` goes to Pages under the repository's own base path.
+  Live and verified: page, bundle, stylesheet, manifest, service worker and every
+  icon fetch over HTTPS from the published site, and no `state/`, `exports/` or
+  spreadsheet reachable through the site URL.
 - `docs/sync.md` — the repo layout, the fine-grained token a device needs, what
   each failure means, and the check steps for deployment and for two devices
   syncing.
@@ -193,11 +197,10 @@ Done:
 
 Still to do:
 
-- **M8 first.** Nothing in the app asks for a token yet, so no device can push
-  or pull — the sync engine is only exercised by tests. Settings needs: token
-  entry with a connection test, the repo fields, the sync interval, the weekly
-  MYOB day and cut-off, and a "pull exports" button on Sources.
-- One manual step on GitHub: Settings → Pages → Source: **GitHub Actions**.
+- The sync loop (working order 2), then Sources pulling the exports (working
+  order 3). Until then the spreadsheets are dropped into the data repository by
+  hand and the app never pushes.
+- Power Automate mirroring the exports, once the pull exists to consume them.
 - The first push: this working copy has no `.git` yet.
 
 ## The one a browser had to catch
@@ -236,3 +239,32 @@ the read, so a slow announcement is never mistaken for a missed keypress (which
 would overshoot). Run four times on the throttled phone project after the change;
 four passes. It is also a small product truth: the first arrow key after a pick-up
 can be lost on a slow device, for everyone, not only in tests.
+
+## The one that went out before it was scrubbed
+
+Publishing the repository was itself a mistake waiting to happen, and it happened.
+The command that was supposed to point `main` at the scrubbed history failed —
+`git reset --hard public` refused because `public` names both a branch and the
+`public/` asset directory — and because the failure was not checked, the `git push`
+that followed published the *old* history to the new public repository. That history
+held the real stock quantities, the trading name, the legal entity, the street
+address, a customer name and a staff name: everything the scrub a few minutes later
+had removed from the tip. Three minutes, then deleted and recreated, and GitHub
+dropped the objects with the repository — verified by fetching the same URLs at the
+same SHAs and getting 404, against control fetches that returned 200.
+
+Two rules come out of it, both worth keeping:
+
+- **A publishable tree is not the same thing as a publishable history.** Checking the
+  working copy proves nothing about the commits underneath it. Anything that goes
+  out as source gets its *history* checked too, or starts from a fresh commit built
+  from the tree that was checked.
+- **Never chain a git command whose failure can be swallowed.** Ambiguous names are
+  the trap: `main` and `public` both resolve, so git guesses and the guess is wrong
+  quietly. Refuses are cheap; a swallowed one costs what this cost.
+
+Also true and worth saying plainly: the check that would have caught the *content*
+was a cross-check of every string in both real exports against every tracked file.
+It found things nobody had thought to look for, including a real row quoted in a
+source comment. That cross-check is the thing to re-run before any publication, not
+a skim of the diff.
