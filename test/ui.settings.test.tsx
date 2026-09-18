@@ -25,6 +25,31 @@ async function paint(): Promise<void> {
   }
 }
 
+/**
+ * Paint until a condition holds.
+ *
+ * `paint()` is three turns of the event loop, which is a guess about how fast the
+ * machine is. Locally that guess holds; on a CI runner a Dexie write needs more
+ * turns, and the test fails over the speed of the hardware instead of the code —
+ * which is exactly how this file's token test failed in the first GitHub run.
+ * Anything here that depends on a write or a fetch landing asks for the result
+ * instead of counting turns.
+ */
+async function until(assert: () => void | Promise<void>, tries = 60): Promise<void> {
+  let last: unknown;
+  for (let i = 0; i < tries; i += 1) {
+    await paint();
+    try {
+      await assert();
+      return;
+    } catch (error) {
+      last = error;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  throw last;
+}
+
 async function renderSettings(): Promise<Rendered> {
   const h = render(<Settings />);
   await paint();
@@ -90,7 +115,8 @@ describe('Settings screen', () => {
     const h = await renderSettings();
     typeValue(fieldControl(h.host, 'Token'), 'github_pat_device_only');
     click(button(h.host, 'Save'));
-    await paint();
+    // The tile reports what is stored, so this waits for the write to land.
+    await until(() => expect(h.host.textContent).toContain('On this device'));
 
     expect(await getDeviceToken()).toBe('github_pat_device_only');
     // The state document is assembled from Settings, so this is the assertion
@@ -106,10 +132,9 @@ describe('Settings screen', () => {
 
     typeValue(fieldControl(h.host, 'Token'), 'github_pat_wrong');
     click(button(h.host, 'Test connection'));
-    await paint();
+    await until(() => expect(h.host.textContent).toContain('Token rejected (401)'));
 
     expect(seen).toContain('https://api.github.com/repos/Freo-Stone/Production-App-Data');
-    expect(h.host.textContent).toContain('Token rejected (401)');
     expect(await getDeviceToken()).toBe('github_pat_wrong');
     h.unmount();
   });
@@ -123,9 +148,8 @@ describe('Settings screen', () => {
     const h = await renderSettings();
 
     click(button(h.host, 'Test connection'));
-    await paint();
+    await until(() => expect(h.host.textContent).toContain('PUBLIC repository'));
 
-    expect(h.host.textContent).toContain('PUBLIC repository');
     expect(h.host.textContent, 'and not pretend the test passed').not.toContain('is reachable and this token can write');
     h.unmount();
   });
@@ -138,23 +162,21 @@ describe('Settings screen', () => {
 
     const h = await renderSettings();
     click(button(h.host, 'Test connection'));
-    await paint();
+    await until(() => expect(h.host.textContent).toContain('Could not reach GitHub from this device'));
 
-    expect(h.host.textContent).toContain('Could not reach GitHub from this device');
     h.unmount();
   });
 
   it('forgets the device without touching the settings', async () => {
     await setDeviceToken('github_pat_borrowed');
     const h = await renderSettings();
-    expect(h.host.textContent).toContain('On this device');
+    await until(() => expect(h.host.textContent).toContain('On this device'));
 
     click(button(h.host, 'Clear the token'));
-    await paint();
+    await until(() => expect(h.host.textContent).toContain('Not set'));
 
     expect(await getDeviceToken()).toBe('');
     expect((await getSettings()).sync.githubRepo).toBe('Production-App-Data');
-    expect(h.host.textContent).toContain('Not set');
     h.unmount();
   });
 
@@ -164,9 +186,8 @@ describe('Settings screen', () => {
 
     const h = await renderSettings();
     typeValue(fieldControl(h.host, 'Entry day'), '1');
-    await paint();
+    await until(async () => expect((await getSettings()).myobEntry.entryWeekday).toBe(1));
 
-    expect((await getSettings()).myobEntry.entryWeekday).toBe(1);
     h.unmount();
   });
 });
