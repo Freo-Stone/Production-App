@@ -99,6 +99,11 @@ with it. Weekend columns are tinted, nothing more: curing runs through a weekend
 and a truck can be loaded on one, so the app does not treat Saturday and Sunday as
 days nothing happens.
 
+The board starts at today. A line promised last week is not on it, and a promise
+dated 4/04/2040 goes into **Beyond** rather than into a day nobody can plan around
+— both of them are still demand, and [Future jobs](future-jobs.md) is where the
+late ones get read, one order at a time.
+
 ## On a phone
 
 Forty-two columns sideways on a 390px screen is not a board. A phone shows the

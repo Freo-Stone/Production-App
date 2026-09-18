@@ -647,10 +647,14 @@ jump from a Matrix row.
 
 M5 is in under *Daily entry*: see above, and `docs/screens/entry.md`. The curing
 count in the menu moved off zero the moment the first rack was logged, which is the
-first time in this app's life a badge has meant anything. Five of the seven are now
+first time in this app's life a badge has meant anything. Six of the seven are now
 real — **Daily entry**, **Curing**, **Shotblast**, **MYOB entry** and the
-**Production log**, each in its own section above — and the stub that goes next is
-**Future jobs**, which is the one that already exists under another name.
+**Production log** and **Future jobs**, each in its own section above — and the stub
+that goes next is **Schedule**, the one screen that needs a writer of its own before it
+can show anything: nothing in this app creates a `planItem` yet. It turned out the order
+book did need its own screen after all. The jobs table on Data sources answers *what did
+the export contain*; the new one answers *can we ship it* — the same rows, two different
+questions, and only one of them is opened on the floor.
 
 **Found on the way, to fix rather than leave.** The Matrix cannot resize, hide or
 reset its day columns (the day keys are not in the view's declared keys, so a
@@ -1007,6 +1011,79 @@ readers, 14 on the screen; the log's own browser tests, 16 passing with 2 phone-
 drive a rack from Daily entry through the cure and into MYOB and read all three
 lines back with one press, on desktop, Pixel 7 and Firefox; the full browser suite,
 typecheck, `check-build` at both bases and `check:worker` are below.
+
+## The order book, and who the pallet belongs to · done
+
+`/#/jobs`. Rules in `src/core/jobsBoard.ts`, the read in `src/data/jobRepo.ts`, the
+screen in `src/screens/FutureJobs.tsx`, and `docs/screens/future-jobs.md`.
+
+MYOB says a customer is owed 8 m². It does not say whether the 10 m² standing in the
+yard is the answer, so the owner was doing that sum in his head with somebody waiting
+on the phone. This screen does it: every open sales-order line, and against it what
+this device can already point at — stock on hand, what is on the racks, what is ready,
+and what has been keyed into MYOB and not yet come back out of an export. Then, what is
+still genuinely owed.
+
+**Four decisions, all of them on the record.**
+
+- **The pool is the one the app already uses.** Cover comes from
+  `calc.productPosition`'s `inclCuringBlasted` — the same figure Products shows as
+  *+ curing/blast* — and not from a second implementation of "what do we have". Two
+  screens answering one question differently is the failure this app keeps having to
+  walk back. Because `productPosition` filters what it is handed, the board buckets
+  stock rows and racks by code once and hands it only its own, so six hundred codes
+  against two thousand stock rows is one pass and not six hundred.
+- **Who the pallet belongs to is a rule, and it is written down on the screen.** A
+  code is often promised to three customers on three days. The earliest promise is
+  covered first, then the order number, so a later line cannot eat the same pallet
+  twice, and the same input always gives the same answer. Lines the export has never
+  dated sort after every dated promise: an undated order must not take the stock a
+  customer is actually waiting for. MYOB says none of this, so the footnote under the
+  table says it is *this screen's* rule.
+- **`Covered` is about the line; `Whole shop` is about the code.** Different columns on
+  purpose, and the whole-shop figure reads the same on every line for a code. Adding
+  the Covered column up will not equal it unless the book is small enough to cover.
+- **Codes that are not ours say so.** A code in the export with no product on this
+  device has nothing to compare against — no zero, no invented figure. The row reads
+  **not ours**, pressing it says all of it stands as owed, and they are counted apart
+  in the header.
+
+**The late lines, which had nowhere to be seen.** The production board starts at
+today, so an order that slipped three weeks ago is invisible there while still being
+real demand. Here it is a line with a minus in *Days to go*, counted in **Past due**
+and in the header — on the shop's own export, 85 of 1,078 open lines. Matrix and
+Products still disagree about whether those lines are demand; that is on the list. They
+are no longer on nobody's screen.
+
+**Placeholder dates, which are most of the file.** A large share of the export's open
+lines are dated 4/04/2040. They are not promises, so they sit out of the near-term
+views and are counted on a chip — **No promise date 475** — which brings them back with
+a sentence about what you are now looking at. Two thirds of a book vanishing without a
+word is how a screen loses a shop's trust.
+
+**Four things it turned up on the way.**
+
+- The totals row printed `Sold 20,415…`. A total a person cannot read is worse than no
+  total, so the quantity columns are wide enough for the biggest sum they will carry,
+  and the header hint says what that sum is worth reading — one customer or one code,
+  not the whole book, because it adds freight lines to square metres.
+- The detail card led with the customer's name in a card heading, which truncates, so a
+  phone read `HODGE MR SCOT…`. The order number leads now and the customer is written
+  out in full in the first line — *HODGE MR SCOTT & MEL was promised 17/09/2026 — 1 day
+  late*. Nothing a person needs may exist only in a heading that gets cut off.
+- "Promised today" needed a decision, and it is not late: `0` days to go is the day the
+  truck comes.
+- A line with `qty: 0` (pickup weights, end-location codes) is neither covered nor
+  owed, and a credit line is never covered — a credit is not something you put a pallet
+  against. Both are kept exactly as exported.
+
+**Verified.** 585 unit tests across 43 files — 14 on the reading rules, 7 on the read,
+11 on the screen; 7 browser tests on desktop, Pixel 7 and Firefox (2 phone-only skips)
+load the shop's real fixture exports the way the shop loads them, then hold the screen
+against itself: the number printed on each window chip is the number that filter
+reports, asking for undated lines adds exactly what the chip claims, a search says how
+much it took out, and pressing a row explains itself in things a person can go and look
+at.
 
 ## M12 — The sync loop · planned, not built
 

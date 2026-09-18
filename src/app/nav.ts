@@ -51,7 +51,7 @@ export const NAV: NavItem[] = [
     label: 'Future jobs',
     short: 'Jobs',
     group: 'plan',
-    blurb: 'Every open sales-order line from the MYOB export.',
+    blurb: 'What has been sold that we still owe, and what the shop can already point at.',
   },
   {
     path: '/schedule',

@@ -113,3 +113,8 @@ the board.
 Placeholder promise dates (a year like 4/04/2040 means "no date yet") are held
 out of the near-term job list, and the switch above the table puts them back when
 you need to see them.
+
+The shop-facing view of the same lines is [Future jobs](future-jobs.md): the order
+book in promise order, with what the shop can already point at against each line.
+This screen stays the import-facing one — every column exactly as it arrived, and
+the rows the parser refused.

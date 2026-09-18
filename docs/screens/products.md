@@ -50,6 +50,10 @@ Read-only, straight from `calc.productPosition`:
 - **To target** — how much more is needed to reach the target level.
 - **Open demand** — quantity promised in open jobs from `future.xlsx`.
 
+The same pool read against one *order line* — which customer's promise the pallet
+answers, and what that line still needs — is on
+[Future jobs](future-jobs.md).
+
 ## Editing
 
 A cell writes when it loses focus (Tab, Enter or a click away). Escape abandons

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Shell } from '@/app/Shell';
 import { Curing } from '@/screens/Curing';
 import { Entry } from '@/screens/Entry';
+import { FutureJobs } from '@/screens/FutureJobs';
 import { Matrix } from '@/screens/Matrix';
 import { People } from '@/screens/People';
 import { ProductionLog } from '@/screens/ProductionLog';
@@ -31,18 +32,7 @@ function screenFor(path: string) {
     case '':
       return <Matrix />;
     case 'jobs':
-      return (
-        <UnderConstruction
-          title="Future jobs"
-          icon="jobs"
-          blurb="Open sales-order lines from the MYOB export."
-          steps={[
-            'Sortable, resizable table of every open line',
-            'Filter by customer, product and promised date',
-            'Placeholder dates (4/04/2040) held out of the near-term view',
-          ]}
-        />
-      );
+      return <FutureJobs />;
     case 'schedule':
       return (
         <UnderConstruction
