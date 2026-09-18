@@ -58,6 +58,8 @@ describe('product settings writes', () => {
     expect(events[0]?.action).toBe('product.update');
     expect(events[0]?.code).toBe('S3');
     expect(events[0]?.detail).toContain('set current');
+    // The log line has to name the product it changed — it is read on its own.
+    expect(events[0]?.detail).toMatch(/^S3: /);
     expect(events[0]?.detail).toContain('Make + blast');
   });
 

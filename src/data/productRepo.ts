@@ -59,7 +59,10 @@ export async function patchProduct(code: string, patch: ProductPatch): Promise<P
     await db.products.put(next);
     await logEvent('product.update', {
       code,
-      detail: describeChange(changed),
+      // The production log reads this sentence out loud, on its own, with nothing
+      // beside it to say which product it was. "set current" was only ever legible
+      // in the row it came from.
+      detail: `${code}: ${describeChange(changed)}`,
     });
     return next;
   });

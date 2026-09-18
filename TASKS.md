@@ -647,10 +647,10 @@ jump from a Matrix row.
 
 M5 is in under *Daily entry*: see above, and `docs/screens/entry.md`. The curing
 count in the menu moved off zero the moment the first rack was logged, which is the
-first time in this app's life a badge has meant anything. Four of the seven are now
-real — **Daily entry**, **Curing**, **Shotblast** and **MYOB entry**, each in its own
-section above — and the stub that goes next is the **Production log**, because every
-one of these screens has been writing a ledger nobody can read yet.
+first time in this app's life a badge has meant anything. Five of the seven are now
+real — **Daily entry**, **Curing**, **Shotblast**, **MYOB entry** and the
+**Production log**, each in its own section above — and the stub that goes next is
+**Future jobs**, which is the one that already exists under another name.
 
 **Found on the way, to fix rather than leave.** The Matrix cannot resize, hide or
 reset its day columns (the day keys are not in the view's declared keys, so a
@@ -943,6 +943,70 @@ browser suite at **247 passed and 8 skipped** on desktop, Pixel 7 and Firefox wi
 MYOB tests, `tsc --noEmit` clean, **33 build checks at both `/` and `/Production-App/`**,
 and `check:worker` green — whose first run failed for the known reason, `dist` having
 just been built at the Pages base.
+
+## The log that had been filling up for a year · done
+
+`src/core/ledger.ts`, `src/screens/ProductionLog.tsx`, readers in
+`src/data/events.ts`, page in `docs/screens/production-log.md`. Eighteen call sites
+have been writing the ledger since the first import — Daily entry, Curing, the
+blaster, the MYOB run, Data sources, Products, People, and the sign-in screen every
+time somebody sits down at a tablet. **Nothing had ever read one back.** This is the
+screen that reads it, which makes it the first place in the app where "who moved
+this rack, when" can actually be answered.
+
+Four decisions carried the build:
+
+- **The action map is exhaustive on the action type on purpose.** `LEDGER_ACTIONS`
+  has to name all twenty-four, with a group for each, so a new action stops the
+  build instead of arriving as a row with no words in it. The groups are the five
+  filter chips, and the day summaries use the same five, so the strip above a day and
+  the chip that would filter it say the same thing.
+- **The diary and one rack's history are not the same read.** The diary takes the
+  newest 400 lines off the `at` index — it is a live query, running again on every
+  write in the shop, so it stops at the window instead of pulling every line this
+  device ever wrote into memory and sorting it, which is what the dead `recentEvents`
+  helper used to do. One rack's history reads **every** line about that rack, because
+  the line wanted on a Friday is usually the one a busy fortnight pushed out of the
+  window. `This rack` on a line puts the rack in the address, so it survives a
+  reload and can be read by somebody else.
+- **A line is dated when the press happened, and the screen says so.** Back-date an
+  entry to Tuesday and its line lands today. That is what an audit log is for, and
+  the business date is in the sentence — which is one reason rack numbers carry the
+  day they were made on.
+- **Names, both sides.** The *who* is the signed-in account stamped at the time, and
+  a line written with nobody signed in says `nobody signed in` rather than borrowing
+  the last name. The *where* is a device id, because ids survive renames, looked up
+  against the names People gives tablets, trimmed to `8f4c1a2e…` when there is no
+  name yet.
+
+**Found on the way, fixed rather than left.** Four things the log's first reader
+turned up, all of them in other people's code or in the way lines were worded:
+
+- `product.update` lines read `set current` and `route → Make only`, because the
+  only reader they were ever written for was the Products row they came from, where
+  the code was already on screen beside them. Read out of context in a diary they
+  name nothing. They now read `GL4: set current`.
+- The screen said **"Nothing matches"** while it was still reading, on a device with
+  nine hundred lines. It now says it is reading, like every other screen here.
+- Every line carried a UUID for the device, which ate the whole width of a phone
+  line and told nobody anything.
+- The day summary — *"3 on the floor · 1 keyed into MYOB · 4 products or exports…"* —
+  was cut off at "4 products or e…" at 412px, which is worse than saying less. Phones
+  get counters: `floor 3 · MYOB 1 · products 4 · people 2`.
+
+**A thing seen through the screenshots, worth his attention.** The toast stack
+survives a reload — it is persisted — and it never clears itself, so five presses on
+other screens sit over the diary on a phone until each one is dismissed by hand.
+Worse, the bottom tab bar is painted over the lowest toast, so the one a thumb
+reaches for first is the one that cannot be pressed. The browser tests dismiss the
+stack through the DOM for exactly that reason. Not this screen's bug, and the same
+on every screen; it goes on the list with the other paint-order items.
+
+**Verified.** 553 unit tests across 40 files — 25 on the reading rules, 9 on the
+readers, 14 on the screen; the log's own browser tests, 16 passing with 2 phone-only skips,
+drive a rack from Daily entry through the cure and into MYOB and read all three
+lines back with one press, on desktop, Pixel 7 and Firefox; the full browser suite,
+typecheck, `check-build` at both bases and `check:worker` are below.
 
 ## M12 — The sync loop · planned, not built
 

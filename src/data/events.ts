@@ -45,7 +45,33 @@ export async function logEvent(
   return entry;
 }
 
-export async function recentEvents(limit = 200): Promise<EventLog[]> {
-  const all = await db.events.toArray();
-  return all.sort((a, b) => b.at - a.at).slice(0, limit);
+/** How many lines this device holds, for a header that says "of 1,204". */
+export async function ledgerSize(): Promise<number> {
+  return db.events.count();
+}
+
+/**
+ * The newest `limit` lines, newest first.
+ *
+ * The log is read through a live query, so this runs again on every write. Reading
+ * the whole table and sorting it in memory — which is what the old helper did — is
+ * fine for forty lines and silly for a shop that has been logging for a year, so it
+ * walks the `at` index backwards and stops at the window. The screen asks for more
+ * when somebody presses *Show earlier lines*.
+ */
+export async function ledgerWindow(limit = 400): Promise<EventLog[]> {
+  const want = Math.max(1, Math.min(5_000, Math.round(limit)));
+  return db.events.orderBy('at').reverse().limit(want).toArray();
+}
+
+/**
+ * One rack's whole history, newest first.
+ *
+ * Deliberately not the window filtered down: the line that says who moved a rack
+ * three weeks ago is exactly the line that a busy fortnight has pushed out of the
+ * newest four hundred.
+ */
+export async function ledgerForBatch(batchId: string, limit = 500): Promise<EventLog[]> {
+  const rows = await db.events.where('batchId').equals(batchId).toArray();
+  return rows.sort((a, b) => b.at - a.at).slice(0, limit);
 }

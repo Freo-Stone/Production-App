@@ -4,6 +4,7 @@ import { Curing } from '@/screens/Curing';
 import { Entry } from '@/screens/Entry';
 import { Matrix } from '@/screens/Matrix';
 import { People } from '@/screens/People';
+import { ProductionLog } from '@/screens/ProductionLog';
 import { Products } from '@/screens/Products';
 import { Settings } from '@/screens/Settings';
 import { MyobEntry } from '@/screens/MyobEntry';
@@ -53,13 +54,7 @@ function screenFor(path: string) {
     case 'entry':
       return <Entry />;
     case 'log':
-      return (
-        <UnderConstruction
-          title="Production log"
-          icon="log"
-          blurb="Every batch and its stage history."
-        />
-      );
+      return <ProductionLog />;
     case 'curing':
       return <Curing />;
     case 'shotblast':

@@ -65,6 +65,8 @@ one that has waited longest is at the top: that is the one holding up an invoice
 [MYOB entry queue](myob-entry.md) works through. It writes one stage change and one ledger line —
 `A3 off the racks — 6 trays ready` — with who did it and from what to what. It
 does not touch stock, does not create a MYOB run, and does not promise a date.
+That line is read back on the [production log](production-log.md), which is where
+"who took this rack off, when" gets answered.
 
 A rack that has come off the cure is also **offered in a sentence** above the
 list, with a single *Move them to Ready* button for all of them at once. That is

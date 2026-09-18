@@ -125,6 +125,11 @@ one ledger line per rack:
 2026-09-14-01 keyed into MYOB — run 18/09/2026 · 8 trays · 16.00 GL4 · ref INV-42
 ```
 
+That sentence is the shop's only record of what was keyed and under what
+reference, so it is worth knowing it can be read back: the
+[production log](production-log.md) is the screen that reads the ledger, and it
+can pull one rack's whole story out of a month of other work.
+
 It is a bulk write, so one bad rack does not stop the run. Anything the rules refuse
 is left where it is and reported by name — *"Left in the queue — 2026-09-10-02 is
 still curing — due in 3 days."* — while the rest are keyed. The rule is re-checked

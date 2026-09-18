@@ -70,10 +70,20 @@ async function sortByDemand(page: Page): Promise<void> {
   // through a live query, so reading immediately catches the board before it has
   // moved — and clicking again on the strength of that reading is how a sort gets
   // toggled back to nothing.
+  const sorted = () => header.getAttribute('aria-sort').then((v) => v !== 'none');
   await header.click();
-  await expect
-    .poll(() => header.getAttribute('aria-sort'), { timeout: 8000, message: 'the sort has been applied' })
-    .not.toBe('none');
+  try {
+    await expect.poll(sorted, { timeout: 5000, message: 'the sort has been applied' }).toBe(true);
+  } catch {
+    // The click did not land. On a board still settling, the header can be replaced
+    // between hit-testing and dispatch, and the event goes to a node React has
+    // already dropped. Press once more: if the sort still does not apply, that is the
+    // app's failure and the message below says so.
+    await header.click();
+    await expect
+      .poll(sorted, { timeout: 10_000, message: 'the sort did not apply after two presses' })
+      .toBe(true);
+  }
   if ((await header.getAttribute('aria-sort')) === 'ascending') await header.click();
   await expect(header).toHaveAttribute('aria-sort', 'descending');
 }

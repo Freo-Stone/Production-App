@@ -369,6 +369,23 @@ export interface DeviceRow extends DeviceRecord {
   userName: string;
 }
 
+/**
+ * Device id to the name a shop gave it.
+ *
+ * The ledger writes the id, because ids survive a rename. A log line that has to be
+ * read on a phone wants the name instead, and this is the one cheap lookup that
+ * turns `dev_8f4c1a2e-…` into `Floor tablet`.
+ */
+export async function deviceLabels(): Promise<Record<string, string>> {
+  const rows = await db.devices.toArray();
+  const names: Record<string, string> = {};
+  for (const row of rows) {
+    if (row.deleted === true) continue;
+    if (row.label.trim() !== '') names[row.id] = row.label.trim();
+  }
+  return names;
+}
+
 export async function listDevices(): Promise<DeviceRow[]> {
   const accounts = await db.users.toArray();
   const nameOf = new Map(accounts.map((a) => [a.id, a.name]));

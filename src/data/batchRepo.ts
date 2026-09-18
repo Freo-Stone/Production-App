@@ -566,6 +566,19 @@ export async function stockCapturedAt(): Promise<number | null> {
 }
 
 /**
+ * The two things a person reads a rack by, for a log line that has to name it.
+ *
+ * A rack whose row is gone — written off and cleared, or made on another device —
+ * still has ledger lines, and the log has to be able to say that rather than show
+ * a heading for a rack that does not exist.
+ */
+export async function describeRack(batchId: string): Promise<{ batchNo: string; code: string } | null> {
+  const batch = await db.batches.get(batchId);
+  if (batch === undefined) return null;
+  return { batchNo: batch.batchNo, code: batch.code };
+}
+
+/**
  * The ledger line for a move, in the words the log will be read in.
  *
  * Generic moves get the plain form; the two moves people actually search the log

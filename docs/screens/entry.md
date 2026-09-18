@@ -76,7 +76,9 @@ same day may both choose `-03`; the number is a label and the id is the identity
 
 A mis-typed entry can be taken back **while it has gone nowhere** — not blasted,
 not put on a MYOB run, not keyed into MYOB. Taking back leaves a tombstone, not
-an erasure (other devices have to hear that it went away) and one ledger line.
+an erasure (other devices have to hear that it went away) and one ledger line —
+read back, with every other press of the day, on the
+[production log](production-log.md).
 
 Past that point the row is evidence: a pallet has been moved on the strength of
 it. Those are corrected by writing off, which keeps both records and says why —

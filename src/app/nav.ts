@@ -72,7 +72,7 @@ export const NAV: NavItem[] = [
     label: 'Production log',
     short: 'Log',
     group: 'make',
-    blurb: 'Every batch, its stage history and who made it.',
+    blurb: 'Every line the shop has written down, and who wrote it.',
   },
   {
     path: '/curing',
