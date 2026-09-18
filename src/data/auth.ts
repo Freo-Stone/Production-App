@@ -10,7 +10,9 @@
  */
 import type { Settings } from '@/core/types';
 import { db } from '@/data/db';
-import { GitHubClient, type FetchLike, type TokenCheck } from '@/data/github';
+import { GitHubClient, globalFetch, type FetchLike, type TokenCheck } from '@/data/github';
+import { detectStore, ServerStore } from '@/data/serverStore';
+import type { ShopStore } from '@/data/store';
 
 export const TOKEN_KEY = 'github.token';
 
@@ -37,12 +39,25 @@ export async function setDeviceToken(token: string): Promise<void> {
  * error. `fetchImpl` is the GitHub client's own narrow fetch shape, injected by
  * tests so nothing reaches the network.
  */
+/**
+ * The store this device writes to, or `null` when it has no key and so cannot.
+ *
+ * Which store that is is not a setting anybody should have to keep correct. The app
+ * asks the machine it is standing on once per session: a shop server answering
+ * `/api/health` means the numbers belong to that box, and no answer — GitHub Pages,
+ * a laptop opening the file from disk — means the repository, as it always has. The
+ * token goes in the same slot either way, because to the person holding the phone it
+ * is the same thing: this device's key to the shop's data.
+ */
 export async function clientForDevice(
   settings: Settings,
   fetchImpl?: FetchLike,
-): Promise<GitHubClient | null> {
-  const { githubOwner, githubRepo, githubBranch } = settings.sync;
+): Promise<ShopStore | null> {
   const token = await getDeviceToken();
+  if (!token) return null;
+  const server = await detectStore(fetchImpl ?? globalFetch);
+  if (server) return new ServerStore(token, settings.deviceName, fetchImpl);
+  const { githubOwner, githubRepo, githubBranch } = settings.sync;
   if (!token || !githubOwner.trim() || !githubRepo.trim()) return null;
   return new GitHubClient({
     owner: githubOwner.trim(),

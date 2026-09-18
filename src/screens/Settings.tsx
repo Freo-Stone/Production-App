@@ -4,6 +4,7 @@ import { getDeviceToken, setDeviceToken, testConnection, type ConnectionTest } f
 import { getSettings, saveSettings } from '@/data/db';
 import { can } from '@/data/principal';
 import { FolderWatchLine } from './SourcesFolder';
+import { StoreLine } from './SettingsStoreLine';
 import { Button, Card, Chip, Field, NumberInput, Select, TextInput, Tile, Toggle, toast } from '@/ui/primitives';
 
 /**
@@ -183,6 +184,7 @@ export function Settings() {
           </Field>
         </div>
 
+        <StoreLine />
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <Field
             label="Token"

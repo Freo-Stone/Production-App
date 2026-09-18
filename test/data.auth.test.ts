@@ -51,9 +51,9 @@ describe('device token', () => {
     // one. Typing the app's own name into the data field would publish the order
     // book, so it is refused — and refused before the write probe, not after.
     await setDeviceToken('github_pat_public_repo');
-    const methods: string[] = [];
-    const fetchImpl: FetchLike = async (_url, init) => {
-      methods.push(init?.method ?? 'GET');
+    const calls: string[] = [];
+    const fetchImpl: FetchLike = async (url, init) => {
+      calls.push(`${init?.method ?? 'GET'} ${url}`);
       return {
         status: 200,
         headers: { get: () => null },
@@ -64,7 +64,12 @@ describe('device token', () => {
     const result = await testConnection(settingsWith(), { probe: true, fetchImpl });
     expect(result.ok, 'a public repository is never an acceptable target').toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/PUBLIC repository/);
-    expect(methods, 'not even the write probe may touch it').toEqual(['GET']);
+    // The store question comes first, then one look at the repository, and never a
+    // write. Something else answering `/api/health` is not a shop server either —
+    // it has to say so — which is why the probe appears here at all.
+    expect(calls.filter((c) => c.startsWith('PUT'))).toEqual([]);
+    expect(calls[0]).toBe('GET /api/health');
+    expect(calls.filter((c) => c.includes('repos/'))).toHaveLength(1);
   });
 
   it('accepts a private repository and goes on to probe the write', async () => {

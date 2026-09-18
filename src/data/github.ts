@@ -46,7 +46,13 @@ export const globalFetch: FetchLike = (url, init) => fetch(url, init as RequestI
 export interface FetchInit {
   method?: string;
   headers?: Record<string, string>;
-  body?: string;
+  /**
+   * A JSON body for the repository, and a workbook's bytes for a shop server, which
+   * sends the file itself rather than base64 of it inside a JSON envelope.
+   */
+  body?: string | Uint8Array;
+  /** For a request that must not sit there forever waiting for a machine that is off. */
+  signal?: AbortSignal;
 }
 
 export interface FetchResponse {
@@ -54,6 +60,13 @@ export interface FetchResponse {
   readonly ok?: boolean;
   readonly headers?: { get(name: string): string | null };
   text(): Promise<string>;
+  /**
+   * Absent on purpose: every fake that has ever been written for this seam answers
+   * with text, and the repository only ever needs text. A caller that needs bytes
+   * says so and fails loudly when its fetch implementation cannot provide them,
+   * rather than turning a workbook into mojibake one character at a time.
+   */
+  arrayBuffer?(): Promise<ArrayBuffer>;
 }
 
 /* ── Errors ────────────────────────────────────────────────────────────────── */
@@ -231,6 +244,9 @@ export type TokenCheck =
   | { ok: false; reason: string };
 
 export class GitHubClient {
+  /** What this is, for the screen that has to say so. See `ShopStore.kind`. */
+  readonly kind = 'github' as const;
+
   private readonly owner: string;
   private readonly repo: string;
   readonly branch: string;
