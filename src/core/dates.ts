@@ -181,6 +181,13 @@ export function weekdayName(weekday: number): string {
   return WEEKDAYS[((weekday % 7) + 7) % 7] ?? '';
 }
 
+const WEEKDAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** The day spelled out, for prose. "Fri is the day…" reads like a typo. */
+export function weekdayLong(weekday: number): string {
+  return WEEKDAYS_LONG[((weekday % 7) + 7) % 7] ?? '';
+}
+
 /** Next occurrence of `weekday` (0=Sun) strictly after `from`, at local midnight. */
 export function nextWeekday(from: number, weekday: number): number {
   const start = dayStart(from);

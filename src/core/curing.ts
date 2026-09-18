@@ -209,8 +209,12 @@ export function cureSummary(
  * person reading "nothing to blast" on the blaster's screen should not have to
  * translate from a sentence written for a different button.
  */
-export function rackIsClosed(batch: Batch, what: 'move' | 'blast'): string | null {
-  if (batch.deleted === true) return `That rack has been taken back, so there is nothing to ${what}.`;
+export function rackIsClosed(batch: Batch, what: 'move' | 'blast' | 'enter'): string | null {
+  if (batch.deleted === true) {
+    return what === 'enter'
+      ? 'That rack has been taken back, so there is nothing to put into MYOB.'
+      : `That rack has been taken back, so there is nothing to ${what}.`;
+  }
   if (batch.stage === 'written_off') {
     return `${batch.batchNo} was written off. If it turned up after all, log it as a new make — the write-off stays in the ledger either way.`;
   }

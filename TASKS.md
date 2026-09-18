@@ -197,12 +197,15 @@ came off them*, and **Shotblast** at `/#/shotblast` under *The blaster, and the
 rack that came out in two pieces* — which is where the partial-blast split that
 `parentBatchId` had been waiting for finally arrived.
 
-## M7 — MYOB entry queue
+## M7 — MYOB entry queue · done
 
 One weekday a week, **Friday** — confirmed, and it is already the default in
-`core/defaults.ts` with a cut-off time. Ready stock is dated to that run, copied out as
-CSV/TSV/XLSX for keying, and marked entered so it leaves the queue until the
-next export replaces it.
+`core/defaults.ts` with a cut-off time. **MYOB entry** is in at `/#/myob`, under
+*The weekly run, and the pile that has to wait for an export* below, and in
+`docs/screens/myob-entry.md`: the run derived per rack from `readyAt` and the cut-off,
+the copy-out as one line per item code (TSV to the clipboard, CSV to a file — XLSX
+dropped, see the section for why), the mark-entered write with its optional reference,
+and the keyed pile that stays visible until a stock export accounts for it.
 
 ## M8 — Settings · started
 
@@ -644,10 +647,10 @@ jump from a Matrix row.
 
 M5 is in under *Daily entry*: see above, and `docs/screens/entry.md`. The curing
 count in the menu moved off zero the moment the first rack was logged, which is the
-first time in this app's life a badge has meant anything. Three of the seven are now
-real — **Daily entry**, **Curing** and **Shotblast**, each in its own section above —
-and the stub that goes next is MYOB entry, because that is where racks that have come
-off the racks actually leave the app.
+first time in this app's life a badge has meant anything. Four of the seven are now
+real — **Daily entry**, **Curing**, **Shotblast** and **MYOB entry**, each in its own
+section above — and the stub that goes next is the **Production log**, because every
+one of these screens has been writing a ledger nobody can read yet.
 
 **Found on the way, to fix rather than leave.** The Matrix cannot resize, hide or
 reset its day columns (the day keys are not in the view's declared keys, so a
@@ -842,6 +845,104 @@ tests, `tsc --noEmit` clean, **33 build checks at both `/` and `/Production-App/
 and `check:worker` green — the first run of which failed because `dist` had just
 been built at the Pages base for the check before it; rerun against its own build,
 it passes, and the note is here so nobody chases that ghost twice.
+
+
+## The weekly run, and the pile that has to wait for an export · done
+
+> *"i need you to go through every page as most are still saying it needs wiring up"*
+
+The fourth stub: **MYOB entry** at `/#/myob`, with the rules in `core/myobQueue.ts`,
+the writers in `data/batchRepo.ts`, and the page in `docs/screens/myob-entry.md`. The
+stub had promised "Copy-ready CSV/TSV/XLSX of the run" and nothing else, which is what
+a screen with no opinion would do. The screen that went in has four opinions in it.
+
+**Run dates are worked out, never remembered.** A rack belongs to the entry weekday on
+or after the day it came ready — rolled a week if it came ready after that day's
+cut-off — and both inputs are read, not written: the day and the cut-off from Settings,
+the moment it came ready from `readyAt`, the same function the Curing screen reads.
+Nothing is dated until the racks are actually keyed, when `myobRunDate` is written next
+to `enteredAt` as evidence. A remembered date is exactly what goes stale when a cure day
+is corrected or a blast is logged late; the derived one re-sorts itself the moment the
+facts change. A rack whose run date has already gone by is headed *Overdue*, not filed
+under "this run", with a chip counting them in the header.
+
+**The copy-out is one line per item code, per run** — because that is what MYOB is
+keyed in as — with the column order from `myobEntry.exportColumns` respected, an
+unknown column key printing an empty cell rather than vanishing, and `{runDate}`
+substituted into the memo template. **XLSX was dropped**: a spreadsheet of a run is one
+File → Save away in whatever program the keying happens in, and writing a real workbook
+to satisfy a stub's bullet is not worth the dependency. TSV goes to the clipboard, CSV
+goes to a file, and the clipboard has a way out — when `navigator.clipboard` is missing
+or rejects *and* the older `execCommand` route fails, the text appears on the screen to
+select by hand and the toast says what happened.
+
+**The tick is the only per-rack decision, and it is momentary.** Everything in the
+queue is in the run; unticking is for the week one order goes ahead of the rest. What is
+copied out and what is marked entered always follow the same ticks, which is the point:
+a run copied out one way and keyed another is the discrepancy nobody spots until MYOB
+and the app disagree. The ticks are deliberately not persisted — a half-remembered
+selection is a worse surprise than a full one — and the menu badge keeps counting the
+whole queue, because that is a fact about the shop rather than about the last click.
+
+**The bulk write reports refusals instead of being stopped by them.** Marking a run
+entered is one transaction and one ledger line per rack
+(`2026-09-14-01 keyed into MYOB — run 18/09/2026 · 8 trays · 16.00 GL4 · ref INV-42`),
+but a rack that turned out to still owe a blast is left exactly where it was, named in a
+toast, while the other forty go through. The rules are re-checked inside the
+transaction, so a button that was honest when it was drawn can only be refused for
+something that happened in between. Taking a rack back is one press with no dialog —
+nothing physical happened, so there is nothing to be careful about — and it writes
+`batch.undo`.
+
+**A rack that is ready in stage but not in fact is named, not offered.** Such racks
+exist — an imported row, a corrected cure day, a blast logged late. `enterProblem` would
+refuse every one, so they are kept out of the run and the header says `2 still curing`
+and lists the numbers. A queue quietly shorter than the ready pile is how a shop ends up
+trusting MYOB over its own app.
+
+**Keyed stock stays on screen.** Once it is in MYOB the app cannot see it until the next
+export, so keyed racks sit under *Keyed, not in the export yet* with their reference and
+run date until a stock export on the device accounts for them (four weeks at the
+outside), with **It was not keyed** to put one back.
+
+Four things this turned up in code that is not MYOB's own:
+
+- `Card` put its header actions in a `shrink-0` row inside a card that is
+  `overflow-hidden`, so a header with three buttons clipped the third one mid-word on a
+  412px phone — "Mark entered" came out cut at the card edge in the screenshot. Fixed in
+  the primitive by letting the row wrap, and asserted from then on in `e2e/myob.spec.ts`
+  as every button's right edge being inside the viewport. Every other screen with a
+  three-button header was in the same shape.
+- The copy-out table drew **five fixed cells** while its headings came from
+  `myobEntry.exportColumns`. The text that gets pasted was right and the screen was
+  wrong, and the two only disagree for a shop that reorders or drops a column in
+  Settings — where it would have looked like a quantity under "Description". The cells
+  are drawn from the column list now, and a test sets a reordered set with an
+  unrecognised key and reads the headings and the row against each other.
+- The table printed the raw unit key (`m2`) while the row two lines above it printed
+  `m²`. Both go through `unitLabel` now.
+- A template literal left bare in JSX showed this screen's headline sentence to the shop
+  as `` `Friday is the day … after $midday …` `` — and the jsdom test **passed** on that
+  build, because a `contains` match cannot tell interpolated prose from the source that
+  failed to interpolate. The test now asserts the interpolated fragment *and* the
+  absence of `$` and backticks. Worth more than the bug: prose built out of settings has
+  to be asserted as rendered text.
+
+Also noted, not fixed: the Shell's *Nothing set up yet* banner and this screen's
+*Reading the ready pile* both paint in the frames before the live queries resolve, so a
+screenshot taken without waiting shows an empty shop. A paint order, not a data bug —
+though it is what made the first set of shots useless. And one Firefox Matrix test
+failed once in a loaded run because `topRow` returned "whichever row is first" instead of
+the row it had just read the code from: a live-query delivery between the read and the
+click moves a different product into that place. It is pinned to the code now, and the
+suite is green again.
+
+Verified: **505 unit tests across 37 files** (24 rules, 14 writers, 16 screen, including
+the media-query regression, the clipboard fallback and the column alignment), the full
+browser suite at **247 passed and 8 skipped** on desktop, Pixel 7 and Firefox with 22 new
+MYOB tests, `tsc --noEmit` clean, **33 build checks at both `/` and `/Production-App/`**,
+and `check:worker` green — whose first run failed for the known reason, `dist` having
+just been built at the Pages base.
 
 ## M12 — The sync loop · planned, not built
 

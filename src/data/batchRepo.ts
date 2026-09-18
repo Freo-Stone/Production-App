@@ -8,10 +8,12 @@ import {
   type EntryDraft,
   type EntryLine,
 } from '@/core/batches';
+import { assignMyobRunDate } from '@/core/calc';
 import { moveProblem, onTheRacks } from '@/core/curing';
-import { dayStart } from '@/core/dates';
+import { dayStart, formatDayFull } from '@/core/dates';
 import { formatNumber } from '@/core/format';
 import { formatBatchNo, uid } from '@/core/ids';
+import { enterProblem, runDateFor, unenterProblem } from '@/core/myobQueue';
 import { awaitsBlast, blastProblem, splitBlast } from '@/core/shotblast';
 import type { Batch, BatchStage } from '@/core/types';
 import { db, getSettings } from '@/data/db';
@@ -436,6 +438,131 @@ export async function finishBlast(
 /** Everything the blaster is owed, for the screen that works through it. */
 export async function racksAwaitingBlast(): Promise<Batch[]> {
   return (await db.batches.toArray()).filter(awaitsBlast);
+}
+
+/**
+ * Key a MYOB run in.
+ *
+ * One press stands for a morning of typing into MYOB, so it does three things at
+ * once: it records that each rack was keyed, which run it was keyed against, and
+ * what reference the shop was working from. After it the racks leave the queue —
+ * the queue is "what is still sitting in the shop", and stock that is in MYOB is
+ * somebody else's problem until the next export.
+ *
+ * What cannot be entered is refused and reported rather than blocking the run:
+ * the list was drawn a minute ago, and one rack that turned out to still owe a
+ * blast should not stop forty others being keyed. The refusal comes back in the
+ * same words the screen would have used.
+ *
+ * Each rack records the run date derived for *it*, not one date stamped over the
+ * lot, because a run routinely carries racks that came ready in different weeks.
+ */
+export async function markEntered(
+  batchIds: string[],
+  ref = '',
+  now = Date.now(),
+): Promise<{ entered: Batch[]; refused: Array<{ batchNo: string; reason: string }> }> {
+  assertCan('myob.enter');
+  return db.transaction('rw', db.batches, db.events, db.meta, async () => {
+    const settings = await getSettings();
+    const reference = ref.trim();
+    const entered: Batch[] = [];
+    const refused: Array<{ batchNo: string; reason: string }> = [];
+
+    for (const id of new Set(batchIds)) {
+      const batch = await db.batches.get(id);
+      if (batch === undefined) {
+        refused.push({ batchNo: id, reason: 'That rack is not on this device.' });
+        continue;
+      }
+      const problem = enterProblem(batch, settings, now);
+      if (problem !== null) {
+        refused.push({ batchNo: batch.batchNo, reason: problem });
+        continue;
+      }
+      const runDate = runDateFor(batch, settings, now) ?? assignMyobRunDate(now, settings);
+      const keyed: Batch = {
+        ...batch,
+        stage: 'entered_myob',
+        myobRunDate: runDate,
+        enteredAt: now,
+        enteredRef: reference,
+        updatedAt: now,
+      };
+      await db.batches.put(keyed);
+      await logEvent('batch.enterMyob', {
+        batchId: keyed.id,
+        code: keyed.code,
+        qty: keyed.qty,
+        trays: keyed.trays,
+        fromStage: batch.stage,
+        toStage: 'entered_myob',
+        detail:
+          `${batch.batchNo} keyed into MYOB — run ${formatDayFull(runDate)}` +
+          ` · ${formatNumber(keyed.trays, 0)} trays · ${formatNumber(keyed.qty)} ${keyed.code}` +
+          (reference === '' ? '' : ` · ref ${reference}`),
+      });
+      entered.push(keyed);
+    }
+    return { entered, refused };
+  });
+}
+
+/**
+ * Take a rack back out of a run.
+ *
+ * Keying goes wrong: a rack counted twice, a rack keyed that never left the yard.
+ * Undoing the keying is not undoing an event — nothing moved — so it is allowed
+ * with one press, and it leaves a ledger line saying so. The rack goes back to
+ * `ready`, which is where the queue picks it up again.
+ */
+export async function unmarkEntered(batchId: string, now = Date.now()): Promise<Batch> {
+  assertCan('myob.enter');
+  return db.transaction('rw', db.batches, db.events, db.meta, async () => {
+    const batch = await db.batches.get(batchId);
+    if (batch === undefined) throw new MoveRefusedError('That rack is not on this device.');
+    const problem = unenterProblem(batch);
+    if (problem !== null) throw new MoveRefusedError(problem);
+
+    const back: Batch = {
+      ...batch,
+      stage: 'ready',
+      myobRunDate: null,
+      enteredAt: null,
+      enteredRef: '',
+      updatedAt: now,
+    };
+    await db.batches.put(back);
+    await logEvent('batch.undo', {
+      batchId: back.id,
+      code: back.code,
+      qty: back.qty,
+      trays: back.trays,
+      fromStage: batch.stage,
+      toStage: 'ready',
+      detail: `${batch.batchNo} taken out of the MYOB run — it was not keyed after all`,
+    });
+    return back;
+  });
+}
+
+/**
+ * Every rack that has been keyed into MYOB, most recent first.
+ *
+ * The screen decides what to do with the list: what was keyed after the stock
+ * export is still missing from every stock figure in the app, so it has to stay
+ * visible for a while rather than vanish the moment it leaves the queue.
+ */
+export async function keyedRacks(): Promise<Batch[]> {
+  return (await db.batches.toArray())
+    .filter((b) => b.deleted !== true && b.enteredAt !== null)
+    .sort((a, b) => (b.enteredAt ?? 0) - (a.enteredAt ?? 0) || a.batchNo.localeCompare(b.batchNo));
+}
+
+/** When the MYOB stock export was taken, or null when there is not one. */
+export async function stockCapturedAt(): Promise<number | null> {
+  const header = await db.stockSnapshots.orderBy('capturedAt').last();
+  return header === undefined ? null : header.capturedAt;
 }
 
 /**

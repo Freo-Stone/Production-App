@@ -176,7 +176,11 @@ export function Card({
             {title ? <h2 className="truncate text-[0.92rem] font-650">{title}</h2> : null}
             {subtitle ? <p className="truncate text-xs text-ink3">{subtitle}</p> : null}
           </div>
-          {actions ? <div className="flex shrink-0 items-center gap-1.5">{actions}</div> : null}
+          {/* Not `shrink-0`: three buttons in a card header are wider than a phone,
+              and the card clips what does not fit — so the button row was cut off
+              mid-word ("Mark entered" came out as "Mark enter"). The row is allowed
+              to shrink and wrap instead, and takes the second line when it must. */}
+          {actions ? <div className="flex flex-wrap items-center gap-1.5">{actions}</div> : null}
         </header>
       ) : null}
       <div className={cx(padded && 'p-3', bodyClassName)}>{children}</div>

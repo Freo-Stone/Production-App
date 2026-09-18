@@ -6,6 +6,7 @@ import { Matrix } from '@/screens/Matrix';
 import { People } from '@/screens/People';
 import { Products } from '@/screens/Products';
 import { Settings } from '@/screens/Settings';
+import { MyobEntry } from '@/screens/MyobEntry';
 import { Shotblast } from '@/screens/Shotblast';
 import { SignIn } from '@/screens/SignIn';
 import { Sources } from '@/screens/Sources';
@@ -64,18 +65,7 @@ function screenFor(path: string) {
     case 'shotblast':
       return <Shotblast />;
     case 'myob':
-      return (
-        <UnderConstruction
-          title="MYOB entry"
-          icon="myob"
-          blurb="The weekly run of stock to key into MYOB."
-          steps={[
-            'Ready stock lands on the next entry weekday, cut-off respected',
-            'Copy-ready CSV/TSV/XLSX of the run',
-            'Mark entered: it leaves the queue and is added back until the next export',
-          ]}
-        />
-      );
+      return <MyobEntry />;
     case 'products':
       return <Products />;
     case 'sources':

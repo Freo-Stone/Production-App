@@ -61,8 +61,8 @@ one that has waited longest is at the top: that is the one holding up an invoice
 
 ## Taking a rack off
 
-*Take it off* moves the rack to **Ready**, which is the pile the MYOB entry queue
-works through. It writes one stage change and one ledger line —
+*Take it off* moves the rack to **Ready**, which is the pile the
+[MYOB entry queue](myob-entry.md) works through. It writes one stage change and one ledger line —
 `A3 off the racks — 6 trays ready` — with who did it and from what to what. It
 does not touch stock, does not create a MYOB run, and does not promise a date.
 
@@ -78,7 +78,8 @@ decides can switch that off in Settings, and the offer disappears with it.
 
 Racks that have come off are listed underneath, *Off the racks, not entered yet*,
 oldest make first, until they are keyed into MYOB. They are counted in the MYOB
-badge the whole time.
+badge the whole time, and the run they belong to is worked out on the
+[MYOB entry screen](myob-entry.md) — this screen never dates a rack itself.
 
 That list exists because *Take it off* is a button on a rack, and sooner or later
 somebody presses it on the wrong one. A rack that goes somewhere nobody can see

@@ -78,11 +78,24 @@ async function sortByDemand(page: Page): Promise<void> {
   await expect(header).toHaveAttribute('aria-sort', 'descending');
 }
 
-/** The top row of the board and the code it carries. */
+/**
+ * The top row of the board and the code it carries.
+ *
+ * The row comes back pinned to that code rather than as "whichever row is first".
+ * The board is a live query: under a loaded test runner a late delivery can re-render
+ * it between reading the code and clicking it, and a click on `:first` then lands on
+ * whatever moved into that place — which reads as a flake in a test about opening the
+ * product you were just looking at.
+ */
 async function topRow(page: Page): Promise<{ code: string; row: Locator }> {
-  const row = page.locator('[role="row"]:not(.dt-totals)').first();
-  const code = ((await row.locator('[data-col="code"]').textContent()) ?? '').trim();
+  const first = page.locator('[role="row"]:not(.dt-totals)').first();
+  await expect(first).toBeVisible();
+  const code = ((await first.locator('[data-col="code"]').textContent()) ?? '').trim();
   if (!code) throw new Error('the board has no rows — nothing was made current');
+  const row = page
+    .locator('[role="row"]:not(.dt-totals)')
+    .filter({ has: page.locator('[data-col="code"]', { hasText: code }) })
+    .first();
   return { code, row };
 }
 
