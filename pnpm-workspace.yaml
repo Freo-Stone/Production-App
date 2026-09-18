@@ -1,0 +1,6 @@
+allowBuilds:
+  # esbuild links a platform binary in its install step; vite and vitest need it.
+  esbuild: true
+minimumReleaseAgeExclude:
+  - framer-motion@13.4.0
+  - jsdom@30.1.0

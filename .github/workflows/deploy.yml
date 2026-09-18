@@ -1,0 +1,85 @@
+# Publishes the app to GitHub Pages.
+#
+# Two things about this workflow matter more than the rest:
+#
+# 1. Only `dist/` is uploaded. This repository also holds `state/state.json` and
+#    the mirrored MYOB exports; those are private data and must never become the
+#    Pages artifact. Publishing the repository contents instead of the build
+#    output would put customer orders on the public internet.
+#
+# 2. The build is gated on the tests. A red main does not reach the shop floor.
+#
+# Pages has to be switched on once, in the repository's Settings → Pages, with
+# Source set to "GitHub Actions". Everything below happens by itself after that.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests
+        run: pnpm test
+
+      # Pages serves a project site from /<repo>/, so asset URLs have to be
+      # built with that prefix — a page built with base "/" loads and stays
+      # blank. Taken from the repository name so a rename does not need a commit.
+      - name: Work out the site base
+        run: echo "BASE=/${GITHUB_REPOSITORY#*/}/" >> "$GITHUB_ENV"
+
+      - name: Build
+        env:
+          VITE_BASE: ${{ env.BASE }}
+        run: pnpm run build
+
+      - name: Built page points at the site base
+        # Cheaper than opening a browser: the entry script, the stylesheet and
+        # the manifest must all sit under the prefix, and the service worker has
+        # to exist or the installed app never updates.
+        run: |
+          grep -q "src=\"${BASE}assets/" dist/index.html
+          grep -q "href=\"${BASE}assets/" dist/index.html
+          grep -q "href=\"${BASE}manifest.webmanifest" dist/index.html
+          test -f dist/sw.js
+          test -f dist/registerSW.js
+          echo "checked $BASE against dist/index.html"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

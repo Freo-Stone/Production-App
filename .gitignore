@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dist-e2e/
+coverage/
+playwright-report/
+test-results/
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.vite/
+
+# Real MYOB exports are customer data — never commit them.
+test/fixtures/real/
+
+# Numbers derived from the real exports: the shop's own stock and sales.
+test/local/
