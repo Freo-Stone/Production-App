@@ -318,6 +318,66 @@ Two things the browser caught that the unit tests could not:
   between. The e2e now waits for the switch to come back through Settings — the
   round trip, not the widget remembering its own click.
 
+## M12 — The sync loop · planned, not built
+
+`src/data/syncEngine.ts` is finished and tested — pull, merge, protect local
+work, push with compare-and-swap on the blob sha, retry, offline queue, conflict
+notes in the ledger. Nothing in `src/app` has ever called it, which is why
+accounts, People and Settings are still per-device facts. This is the milestone
+that makes the multi-user design real, and the one the caveats in
+`docs/accounts.md`, `docs/exports.md` and the People screen are about.
+
+Decisions taken before writing code, so they are not made twice under pressure:
+
+1. **Dirt is declared, not overheard.** The obvious wiring is
+   `db.on('changes').subscribe(...)` → `markDirty`, and it is wrong: a pull
+   writes rows through `applyDocumentToDb`, which would mark everything dirty and
+   make every device push the whole document back after every pull. The engine's
+   own API says so — `markDirty` is called *after a local write commits*. So:
+   `src/data/dirty.ts` holds a sink the app installs (the same shape as
+   `principal.ts`: data layer owns the state, app owns the wiring), and every
+   write helper in the data layer calls `markLocal(collection, key)` on its way
+   out. Forgetting one is a real risk, so the checks name the helpers they cover.
+2. **Every signed-in device syncs, whatever its role.** Gating pushes by role
+   breaks the bootstrap: a viewer's own device record has to reach the shared
+   document or that person can never sign in on a second machine. Roles keep
+   their meaning at the write — `assertCan` in the data layer — and the honest
+   statement is that the last metre of trust is the private repository's token,
+   which is already written in `docs/accounts.md`.
+3. **Mirrors stay local.** The stock and job mirrors are not in the shared
+   document: every device imports the exports for itself, so pushing 2,691 rows
+   of somebody else's MYOB report through a text file on GitHub would be pure
+   cost. Product *identity* rows created by an import are shared, and marked.
+4. **The token never travels**, and a public repository is refused on write. Both
+   already exist; the sync loop is the first thing that would prove them, so they
+   get tests at this layer rather than in principle.
+5. **Status belongs on screen.** A header pill and a Settings card: pending
+   count, last pull, last push, the engine's own plain-language message, and the
+   last failure with its HTTP status. A device that has never synced must say so
+   rather than look idle.
+
+Sketch of the work, each line a committable slice:
+
+- [ ] `src/data/dirty.ts` + `markLocal` in every write helper, with a test per
+      helper asserting the collection it marks.
+- [ ] `src/app/sync.ts`: one engine per device, built from settings and the
+      device token, `browserConnection()` for connectivity, a status store for the
+      UI, start on sign-in when a token exists, stop on sign-out, re-create when
+      the repository changes.
+- [ ] Pull on open, on reconnect, and when a backgrounded app comes back; push on
+      the idle window, on `flush()` after a Save, and on reconnect.
+- [ ] Settings: a sync card that shows the truth, including "this device has no
+      repository token" and the public-repository refusal.
+- [ ] The header pill: pending changes, syncing, offline, conflict.
+- [ ] Tests: the engine already has 541 lines of its own; this milestone adds the
+      wiring — faked transport and timers in node, the Settings card in jsdom, and
+      a browser test for the pill and the honest no-token state. Real
+      two-device proof is manual: two browsers, two tokens, one row entered on
+      each, and both screens showing both rows.
+- [ ] Then retire the caveats: the note on the People screen, the "until the sync
+      loop runs" section in `docs/accounts.md`, the line in `docs/exports.md`, and
+      `docs/sync.md` rewritten from intent to what the code does.
+
 ## The one a browser had to catch
 
 `GitHubClient` stored the global `fetch` as a bare reference and called it as
