@@ -5,15 +5,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '@/core/defaults';
 import { db, getSettings, saveSettings } from '@/data/db';
 import { blankExportState, type ExportStateMap } from '@/data/exportSync';
-import { AutoImportCard } from '@/screens/SourcesAutoImport';
+import { AutoImportBar } from '@/screens/SourcesAutoImport';
 import { signInForTests } from './support/who';
 import { byText, buttonNamed, click, fieldByLabel, render, settle, typeInto, type Rendered } from './support/render';
 
 /**
- * The card that tells the shop whether MYOB's numbers arrived on their own. What
+ * The line that tells the shop whether MYOB's numbers arrived on their own. What
  * is worth testing is the wiring in both directions: what a change writes into
  * Settings, and what a check leaves on screen. Whether GitHub answers is
  * `data.exportSync`'s problem, so the check itself is stood in for.
+ *
+ * It shows one line and hides the rest behind Details, so the tests that care
+ * about the hidden half open it first — which is what a person does too.
  */
 const { runExportCheck } = vi.hoisted(() => ({
   runExportCheck: vi.fn(async () => ({ at: 0, ran: true, reason: null, imported: 0, failed: 0 })),
@@ -65,9 +68,14 @@ async function waitFor(what: () => Promise<boolean>, describe: string, timeoutMs
   }
 }
 
+/** Open the half that is hidden by default: the paths, the interval, the detail. */
+function openDetails(host: HTMLElement): void {
+  click(buttonNamed(host, 'Details'));
+}
+
 async function renderCard(canWrite: boolean): Promise<Rendered> {
   const settings = await getSettings();
-  const host = render(<AutoImportCard settings={settings} states={states()} canWrite={canWrite} />);
+  const host = render(<AutoImportBar settings={settings} states={states()} canWrite={canWrite} />);
   await settle();
   return host;
 }
@@ -79,12 +87,19 @@ beforeEach(async () => {
   signInForTests('maker');
 });
 
-describe('the automatic import card', () => {
+describe('the automatic import line', () => {
   it('says what each file did, in the words the shop reads', async () => {
     const { host } = await renderCard(true);
 
-    expect(byText(host, 'Stock export')).toBeTruthy();
+    // The one-line answer, without opening anything.
     expect(byText(host, 'Imported')).toBeTruthy();
+    expect(byText(host, 'location.xlsx')).toBeTruthy();
+    expect(byText(host, 'Could not import')).toBeTruthy();
+
+    openDetails(host);
+    await settle();
+
+    expect(byText(host, 'Stock export')).toBeTruthy();
     expect(byText(host, '2,342 rows')).toBeTruthy();
     expect(byText(host, '92 KB')).toBeTruthy();
     expect(byText(host, 'checked 4 min ago')).toBeTruthy();
@@ -98,6 +113,8 @@ describe('the automatic import card', () => {
 
   it('writes the interval back to Settings', async () => {
     const { host } = await renderCard(true);
+    openDetails(host);
+    await settle();
     const select = host.querySelector('select');
     if (!(select instanceof HTMLSelectElement)) throw new Error('no interval control on screen');
 
@@ -111,6 +128,8 @@ describe('the automatic import card', () => {
 
   it('writes a changed path back to Settings, so the mirror can be pointed somewhere else', async () => {
     const { host } = await renderCard(true);
+    openDetails(host);
+    await settle();
     const path = fieldByLabel(host, 'Path in the repository');
 
     typeInto(path, 'exports/stock this week.xlsx');
@@ -146,9 +165,15 @@ describe('the automatic import card', () => {
     const { host } = await renderCard(false);
 
     expect(byText(host, 'Imported')).toBeTruthy();
+    // Nothing to trigger a check, and no switch to move.
+    expect(() => buttonNamed(host, 'Check now')).toThrow();
+    expect(host.querySelectorAll('[role="switch"]').length).toBe(0);
+
+    // The paths are readable facts, so opening details shows them as text.
+    openDetails(host);
+    await settle();
     expect(byText(host, 'exports/location.xlsx')).toBeTruthy();
     expect(host.querySelectorAll('input').length).toBe(0);
     expect(host.querySelectorAll('select').length).toBe(0);
-    expect(host.querySelectorAll('button').length).toBe(0);
   });
 });

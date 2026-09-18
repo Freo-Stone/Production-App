@@ -87,8 +87,31 @@ export async function waitForStockTable(page: Page): Promise<void> {
   await expect(page.locator('[role="row"]').first()).toBeVisible();
 }
 
+/**
+ * Open the drop zone.
+ *
+ * The manual import sits behind a disclosure now: the table is the reason the
+ * screen is opened, and a full-size drop zone above it pushed the table off the
+ * bottom of the screen. Choosing files is still the app's own way in, so anything
+ * that wants the file input has to open the panel first — which is what a person
+ * does too.
+ */
+export async function openImportPanel(page: Page): Promise<void> {
+  const trigger = page.getByRole('button', { name: /Import by hand/ });
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  await expect(page.locator('input[type="file"]')).toBeAttached();
+}
+
+/** Open the "Locations counted as stock" line, the same way a person would. */
+export async function openLocations(page: Page): Promise<void> {
+  const trigger = page.getByRole('button', { name: /Locations counted as stock/ });
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+}
+
 /** Drop both real exports in and load them. */
 export async function importBoth(page: Page): Promise<void> {
+  await openImportPanel(page);
   await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
   await loadAllStaged(page);
 }

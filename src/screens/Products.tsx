@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useCan } from '@/app/session';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useFillBelow } from '@/app/useFillBelow';
+import { useMediaQuery } from '@/app/useMediaQuery';
 import { useView } from '@/app/useView';
 import { demandByProduct, productPosition } from '@/core/calc';
 import { defaultView, SCREENS } from '@/core/defaults';
@@ -28,11 +30,12 @@ import {
   Card,
   Chip,
   EmptyState,
+  Fact,
+  FactBar,
   Field,
   NumberInput,
   Select,
   TextInput,
-  Tile,
   toast,
 } from '@/ui/primitives';
 import { ProductDrawer } from '@/screens/ProductDrawer';
@@ -95,6 +98,11 @@ export function Products() {
   const jobs = useLiveQuery(() => latestJobsSnapshot(), []);
   const batches = useLiveQuery(() => db.batches.toArray(), []);
   const settings = useLiveQuery(() => getSettings(), []);
+
+  // Below 640px the shell keeps 80px clear at the bottom for the phone nav, and
+  // the footnote under the table wraps to two or three lines instead of one.
+  const narrow = useMediaQuery('(max-width: 639px)');
+  const table = useFillBelow({ gap: narrow ? 140 : 56, min: 240 });
 
   const view = useView(
     SCREENS.products,
@@ -199,17 +207,20 @@ export function Products() {
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Tile label="Codes known" value={formatNumber(counts.total, 0)} sub="from both MYOB exports" />
-        <Tile label="Current range" value={formatNumber(counts.current, 0)} tone="curing" sub="planned in the matrix" />
-        <Tile
+      {/* One line of counts, not four boxes. The board underneath is where the
+          work happens and it should end at the bottom of the window, not halfway
+          down it. */}
+      <FactBar>
+        <Fact label="Codes known" value={formatNumber(counts.total, 0)} sub="from both MYOB exports" />
+        <Fact label="Current range" value={formatNumber(counts.current, 0)} sub="planned in the matrix" tone={counts.current === 0 ? 'short' : 'curing'} />
+        <Fact
           label="Needs setting"
           value={formatNumber(counts.needs, 0)}
-          tone={counts.needs > 0 ? 'short' : 'neutral'}
           sub="route, unit or yield"
+          tone={counts.needs > 0 ? 'short' : 'ink'}
         />
-        <Tile label="Current, no demand" value={formatNumber(counts.idle, 0)} sub="no open job lines" />
-      </div>
+        <Fact label="Current, no demand" value={formatNumber(counts.idle, 0)} sub="no open job lines" />
+      </FactBar>
 
       <Card
         padded={false}
@@ -293,7 +304,10 @@ export function Products() {
             offered at all, and the writes underneath refuse as well. */}
         {canEdit && picked.size > 0 ? <BulkBar pickedCount={picked.size} onApply={(p) => void applyBulk(p)} /> : null}
 
-        <div className="h-[min(64vh,660px)] min-h-0">
+        {/* Down to the bottom of the window, whatever is sitting above it. The
+            gap is the footnote underneath and, below 640px, the shell's bottom
+            padding that keeps content clear of the phone's nav. */}
+        <div ref={table.ref} className="min-h-[240px]" style={table.height == null ? undefined : { height: table.height }}>
           <DataTable
             rows={shown}
             columns={columns}

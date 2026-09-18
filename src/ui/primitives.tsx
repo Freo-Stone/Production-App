@@ -716,7 +716,12 @@ export function Toaster() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 6 }}
             className={cx(
-              'pointer-events-auto flex w-full max-w-md items-start gap-2 rounded-[var(--radius-md)] border bg-surface2 px-3 py-2 shadow-lg',
+              // Click-through on purpose, apart from its own two controls below.
+              // The table on Data sources now reaches the bottom of the window, and
+              // a toast that swallowed a pointer there would be sitting on the
+              // reason the screen is open — a resize handle that refuses to drag
+              // reads as a broken table, not as a message in the way.
+              'flex w-full max-w-md items-start gap-2 rounded-[var(--radius-md)] border bg-surface2 px-3 py-2 shadow-lg',
               t.tone === 'short' ? 'border-short/50' : 'border-line',
             )}
           >
@@ -728,14 +733,149 @@ export function Toaster() {
               {t.body ? <p className="text-xs text-ink2">{t.body}</p> : null}
             </div>
             {t.action ? (
-              <Button size="sm" variant="ghost" onClick={() => t.action?.run()}>
+              <Button size="sm" variant="ghost" className="pointer-events-auto" onClick={() => t.action?.run()}>
                 {t.action.label}
               </Button>
             ) : null}
-            <IconButton icon="close" label="Dismiss" size={14} onClick={() => dismiss(t.id)} />
+            <IconButton
+              icon="close"
+              label="Dismiss"
+              size={14}
+              className="pointer-events-auto"
+              onClick={() => dismiss(t.id)}
+            />
           </motion.div>
         ))}
       </AnimatePresence>
     </div>
+  );
+}
+
+/**
+ * The one-line strip of facts along the top of a screen.
+ *
+ * Four full-size tiles said "2,688 rows" and cost a fifth of the screen. The
+ * numbers are worth reading and the space is worth more to the table below, so
+ * they live on one line that wraps on a phone instead of four boxes.
+ */
+export function FactBar({
+  children,
+  className,
+  stacked = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  /** One row per child instead of packing them onto one line. */
+  stacked?: boolean;
+}) {
+  return (
+    <div
+      className={cx(
+        'rounded-[var(--radius-md)] border border-line bg-surface2 px-3 py-1.5',
+        // Deliberately not "flex-wrap and let them land where they fit": with a
+        // long line of facts the controls beside them were squeezed to 215px and
+        // wrapped into a stack of their own — the same strip, three times as tall.
+        // A screen either packs the facts or gives each its own row.
+        stacked ? 'flex flex-col gap-y-1.5' : 'flex flex-wrap items-center gap-x-5 gap-y-1.5',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** One fact inside a FactBar. */
+export function Fact({
+  label,
+  value,
+  sub,
+  tone = 'ink',
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: 'ink' | 'curing' | 'warn' | 'short';
+}) {
+  return (
+    <span className="flex min-w-0 items-baseline gap-1.5 text-xs">
+      <span className="text-ink3">{label}</span>
+      <span
+        className={cx(
+          'font-650 whitespace-nowrap',
+          tone === 'curing' && 'text-curing',
+          tone === 'warn' && 'text-warn',
+          tone === 'short' && 'text-short',
+          tone === 'ink' && 'text-ink',
+        )}
+      >
+        {value}
+      </span>
+      {sub ? <span className="min-w-0 truncate text-ink3">{sub}</span> : null}
+    </span>
+  );
+}
+
+/**
+ * A card that keeps its content out of the way until it is asked for.
+ *
+ * Screens like Data sources have a table that is the reason for the visit and a
+ * handful of facts and settings that are not. Stacking everything at full height
+ * pushed the table below the screen, so the important thing needed a scroll to
+ * arrive and another one to move through. A closed disclosure costs one line.
+ *
+ * The content is not rendered while closed. A table or a file picker sitting in a
+ * closed panel would still mount, still fetch, and — in the file input's case —
+ * still be findable by a test that never opened the panel, which is how a hidden
+ * control becomes a lie about what the screen offers.
+ */
+export function Disclosure({
+  title,
+  detail,
+  children,
+  open,
+  defaultOpen = false,
+  onOpenChange,
+  className,
+}: {
+  title: ReactNode;
+  detail?: ReactNode;
+  children: ReactNode;
+  /** Pass to own the open state from the parent; omit to let it keep its own. */
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  className?: string;
+}) {
+  const [own, setOwn] = useState(defaultOpen);
+  const isOpen = open ?? own;
+  const panelId = useId();
+  const openIt = (): void => {
+    const next = !isOpen;
+    if (open === undefined) setOwn(next);
+    onOpenChange?.(next);
+  };
+  return (
+    <section className={cx('card overflow-hidden', className)}>
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        // Only while the panel is actually there: a collapsed disclosure points at
+        // an element that is not in the screen, and a broken aria-controls is worse
+        // than a missing one.
+        {...(isOpen ? { 'aria-controls': panelId } : {})}
+        onClick={openIt}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-surface2"
+      >
+        <Icon name={isOpen ? 'chevronUp' : 'chevronDown'} size={14} className="shrink-0 text-ink3" />
+        <span className="min-w-0 truncate text-[0.92rem] font-650">{title}</span>
+        {detail ? <span className="ml-auto min-w-0 truncate pl-2 text-xs text-ink3">{detail}</span> : null}
+      </button>
+      {isOpen ? (
+        <div id={panelId} className="border-t border-line p-3">
+          {children}
+        </div>
+      ) : null}
+    </section>
   );
 }

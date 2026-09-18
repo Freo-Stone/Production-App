@@ -14,7 +14,7 @@ One number: the **blob sha** GitHub's Contents API returns for the file's
 content.
 
 - Same sha as the last import → nothing is parsed, nothing is written, and the
-  card says *Up to date*. An unchanged week costs one request per file.
+  line says *Up to date*. An unchanged week costs one request per file.
 - Different sha → parse it, import it, remember the new sha.
 - The sha is only recorded when the import **succeeded**. A file that could not
   be read — a mirror interrupted halfway through an upload, an export saved as
@@ -49,7 +49,7 @@ only one set of rules to reason about.
 ## When it runs
 
 - a few seconds after the app is opened,
-- then about every `intervalMinutes` (Settings on the card: 5, 10, 15, 30, hourly),
+- then about every `intervalMinutes` (the line: 5, 10, 15, 30, hourly),
 - when the device finds a signal again,
 - and when a tab that was in the background comes back to the front and the last
   look has gone stale.
@@ -68,7 +68,7 @@ repository current whether or not anyone is looking, so the newest numbers are
 always waiting — but the last metre is done by an open app.
 
 That is the whole of what "when changed" can mean in a shop that pays nobody to
-host a server, and it is written on the card as well as here.
+host a server, and it is written under Details on the line as well as here.
 
 ## Every device imports for itself
 
@@ -83,7 +83,8 @@ file produce the same rows, and a merge of identical content changes nothing.
 
 ## Switching it off, and pointing it somewhere else
 
-The card on **Data sources** holds the switch, the interval and the two paths.
+The line along the top of **Data sources** holds the switch and the interval;
+**Details** opens the two paths and each file's fuller line.
 Off means what it says: the manual drop tray on the same screen is the only way
 in, and the subtitle says so rather than leaving it to be guessed.
 
@@ -109,8 +110,8 @@ which is what you want when the question is "what was stock on Tuesday?".
 | --- | --- | --- |
 | unit | `test/data.exportSync.test.ts` | first import, unchanged skip, only-the-changed-file, retry after a bad file, a file that goes missing, the viewer and switched-off declines, no-token decline, one run shared by concurrent callers, the persisted state |
 | unit | `test/myob.parsers.test.ts` | the reports themselves, and that a mislabelled file is refused |
-| jsdom | `test/ui.autoImport.test.tsx` | the card's wiring: what a change writes into Settings, the Check now call, and what a viewer is shown |
-| browser | `e2e/exports.spec.ts` | the card in Chromium, Firefox and a phone viewport, including a check with nothing to reach and settings that survive a reload |
+| jsdom | `test/ui.autoImport.test.tsx` | the line's wiring: what a change writes into Settings, the Check now call, and what a viewer is shown |
+| browser | `e2e/exports.spec.ts` | the line in Chromium, Firefox and a phone viewport, including a check with nothing to reach and settings that survive a reload |
 
 ```bash
 pnpm exec vitest run test/data.exportSync.test.ts test/ui.autoImport.test.tsx

@@ -1,15 +1,29 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   FILES,
   columnWidths,
   loadAllStaged,
   openApp,
+  openImportPanel,
+  openLocations,
   signIn,
   waitForStockTable,
 } from './support';
 
+/**
+ * Wait until the click has travelled through the view store and back, and say
+ * which way the arrow ended up.
+ */
+async function firstSettled(column: Locator): Promise<string | null> {
+  await expect
+    .poll(() => column.getAttribute('aria-sort'), { timeout: 4000 })
+    .not.toBe('none');
+  return column.getAttribute('aria-sort');
+}
+
 /** Load the stock export and wait for the table to stop moving. */
 async function loadStock(page: Page): Promise<void> {
+  await openImportPanel(page);
   await page.locator('input[type="file"]').setInputFiles([FILES.stock]);
   await page.getByRole('button', { name: 'Load', exact: true }).first().click();
   await waitForStockTable(page);
@@ -21,7 +35,8 @@ test.describe('MYOB import', () => {
   });
 
   test('both exports parse, load and fill the tables', async ({ page }) => {
-    await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
+    await openImportPanel(page);
+  await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
 
     // Both are recognised from the report inside, never the file name.
     const staged = page.getByRole('listitem');
@@ -45,11 +60,13 @@ test.describe('MYOB import', () => {
   test('dropping the same export twice replaces the tray row instead of stacking', async ({
     page,
   }) => {
-    await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
+    await openImportPanel(page);
+  await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
     await expect(page.getByRole('listitem')).toHaveCount(2);
 
     // A second drop of the same pair is "use this copy", not "I have two files".
-    await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
+    await openImportPanel(page);
+  await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
     await expect(page.getByRole('listitem')).toHaveCount(2);
 
     await loadAllStaged(page);
@@ -57,7 +74,8 @@ test.describe('MYOB import', () => {
   });
 
   test('a rejected file explains itself instead of failing silently', async ({ page }) => {
-    await page.locator('input[type="file"]').setInputFiles('playwright.config.ts');
+    await openImportPanel(page);
+  await page.locator('input[type="file"]').setInputFiles('playwright.config.ts');
     await expect(page.getByText(/expected a MYOB/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Load', exact: true })).toHaveCount(0);
   });
@@ -68,16 +86,27 @@ test.describe('MYOB import', () => {
     const firstRow = page.locator('[role="row"]').first();
     const codeColumn = page.locator('[role="columnheader"]', { hasText: 'Item No.' });
 
-    await codeColumn.click();
-    const descending = (await firstRow.innerText()).split('\n')[0] ?? '';
-    await codeColumn.click();
-    const ascending = (await firstRow.innerText()).split('\n')[0] ?? '';
-    expect(descending).not.toBe(ascending);
+    // The view is written to IndexedDB and comes back through a live query, so the
+    // arrow — not the row read immediately after the click — is what says the click
+    // has landed. Reading the row too early used to capture the previous order and
+    // then lose the assertion after the reload, where the truth finally arrived.
+    const topCode = () => firstRow.innerText().then((t) => t.split('\n')[0] ?? '');
 
-    // Reload: the layout belongs to this person and must come back.
+    await codeColumn.click();
+    const firstArrow = await firstSettled(codeColumn);
+    const firstOrder = await topCode();
+
+    await codeColumn.click();
+    await expect.poll(() => codeColumn.getAttribute('aria-sort'), { timeout: 4000 }).not.toBe(firstArrow);
+    const secondArrow = await codeColumn.getAttribute('aria-sort');
+    const secondOrder = await topCode();
+    expect(secondOrder).not.toBe(firstOrder);
+
+    // Reload: the layout belongs to this person and must come back, arrow and all.
     await page.reload();
     await signIn(page);
-    await expect(firstRow).toContainText(ascending);
+    await expect(codeColumn).toHaveAttribute('aria-sort', secondArrow ?? '');
+    await expect(firstRow).toContainText(secondOrder);
   });
 
   test('columns resize with the pointer and the width survives a reload', async ({ page }) => {
@@ -98,9 +127,13 @@ test.describe('MYOB import', () => {
     await page.mouse.up();
 
     // The drag is 100px, so the first column grows by 100px. Asserting the delta
-    // rather than an absolute width keeps the test honest if defaults change.
-    const after = await columnWidths(page);
-    expect(after[0]).toBe(before[0]! + 100);
+    // rather than an absolute width keeps the test honest if defaults change. And
+    // polled, because the width goes to IndexedDB and comes back through a live
+    // query: reading once right after the pointer is up used to catch the old
+    // width on a loaded machine and report a drag that never happened.
+    await expect
+      .poll(async () => (await columnWidths(page))[0], { timeout: 8000, message: 'the dragged width is applied' })
+      .toBe(before[0]! + 100);
 
     await page.reload();
     await signIn(page);
@@ -125,6 +158,10 @@ test.describe('MYOB import', () => {
   test('location chips decide what counts as stock', async ({ page }) => {
     await loadStock(page);
 
+    // The groups live behind their own line now, because the table underneath is
+    // what the screen is for.
+    await openLocations(page);
+
     // HQ is on by default; switching it off is a settings write.
     const hq = page.getByRole('button', { name: /^HQ$/ });
     await expect(hq).toBeVisible();
@@ -132,6 +169,8 @@ test.describe('MYOB import', () => {
     await expect(hq).toHaveAttribute('class', /text-ink3/);
     await page.reload();
     await signIn(page);
+    // The line comes back closed, so the answer is read where it is kept: open it.
+    await openLocations(page);
     await expect(hq).toHaveAttribute('class', /text-ink3/);
   });
 });

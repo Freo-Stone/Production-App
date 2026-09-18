@@ -318,6 +318,60 @@ Two things the browser caught that the unit tests could not:
   between. The e2e now waits for the switch to come back through Settings — the
   round trip, not the widget remembering its own click.
 
+## The screens got out of the way of the table · fixed
+
+Reported from the live site: *"i cant scroll when the spreadsheets are open. also
+there is too much of the screen taken up by the upload and things above the
+important information above the spreadsheet information."* Both halves were real,
+and the first was worse than it looked.
+
+**The table could not be scrolled at all.** `Sources` (and `Products`) wrapped the
+grid in a box of a guessed height and left `DataTable` to fill it, but a
+`DataTable` with no `height` prop was sized by its *content*: its scroll box grew to
+the full height of the list — measured, 91,673px for 1,102 job lines — the
+virtualiser measured that as the visible window and rendered everything, and the
+card around it clipped the rest. So the rows past about the twelfth belonged to no
+scroll on the page: the wheel moved the document and the table never moved. The
+root is `flex h-full min-h-0 flex-col` when no height is given, which is what the
+prop's own documentation always claimed it did.
+
+**Everything above the table was too tall.** Four tiles, a framed automatic-import
+card, a full drop zone and a wall of 23 location chips put the first row at 684px
+of a 720px window. Now:
+
+- one bordered line along the top carries the counts and the automatic-import
+  answer — the switch, the interval, and per file what it did and how long ago —
+  with the paths, the interval control and the fuller lines under **Details**;
+- *Import by hand* and *Locations counted as stock* are `Disclosure` lines, closed
+  by default (a `DataTable`-sized screen should not spend 200px on a tray nobody
+  is using), and choosing files opens the tray by itself so *Load* is never hidden;
+- the empty tables offer **Choose the files** rather than saying "drop it above";
+- the grid's box is measured to the bottom of the window by `useFillBelow`,
+  re-measured on resize, on a phone's URL bar, and whenever anything *above* it
+  changes size — every element ahead of it at every level is watched, because when
+  the line above grows by 12px and the table shrinks by 12px the document is
+  exactly as tall as it was, and an observer on the document never hears about it.
+  The guess (`min(62vh,620px)`) could only ever be wrong for whichever window it
+  was not drawn for.
+- toasts no longer swallow the pointer. They sit over the bottom of the window,
+  which the table now occupies: a toast covering a column's resize handle read as a
+  broken table. The card is click-through; its own two buttons are not.
+
+Measured in the browser, both mirrors loaded: at 1280×720 the line along the top is
+63px and the stock table runs 378→704, with 1px of page scroll left in the whole
+screen; on a phone (390×839) the same line wraps to 164px, the table takes its
+240px floor at 517→757, and the document has nothing left to scroll at all. Before,
+the first row started at 684px of that 720px window.
+
+Proven by `e2e/layout.spec.ts` (fill, no page scroll, the last row reachable
+inside the table by scroll and by wheel, and a closed panel keeping its content out
+of the DOM — desktop, phone, firefox), 3 new tests in `test/ui.disclosure.test.tsx`
+and the reworked `e2e/exports.spec.ts`. Two existing specs needed to say what a
+person now does first — open the tray, open the locations line — and one, *clicking
+a header sorts the table*, had been reading the row immediately after a click and
+capturing the order from the click before; it waits for the arrow to move now, the
+same round-trip rule that caught the interval assertion in M11.
+
 ## M12 — The sync loop · planned, not built
 
 `src/data/syncEngine.ts` is finished and tested — pull, merge, protect local

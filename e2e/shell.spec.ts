@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openApp, signIn } from './support';
+import { FILES, openApp, openImportPanel, signIn } from './support';
 
 test.describe('shell', () => {
   // These are wide-screen assertions: below the layout breakpoint the rail is
@@ -81,22 +81,49 @@ test.describe('phone layout', () => {
 
   test('the import drop zone is reachable with one thumb', async ({ page }) => {
     await openApp(page, '/sources');
-    await expect(page.getByText('Drop the two MYOB exports here')).toBeVisible();
+    // The tray is behind a line now: one press, and the drop zone must land inside
+    // thumb reach rather than below a wall of furniture. (A click, not a tap: the
+    // desktop project has no touch support, and the reach is what is being measured.)
+    const trigger = page.getByRole('button', { name: /Import by hand/ });
+    await trigger.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    const zone = page.getByText('Drop the two MYOB exports here');
+    await expect(zone).toBeVisible();
+    const box = await zone.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.y).toBeLessThan(page.viewportSize()?.height ?? 844);
     // The file input stays reachable for the OS file picker.
     await expect(page.locator('input[type="file"]')).toBeAttached();
   });
 
   test('a table does not force the page sideways', async ({ page }) => {
     await openApp(page, '/sources');
-    await page.locator('input[type="file"]').setInputFiles([
-      'test/fixtures/real/location.xlsx',
-    ]);
+    await openImportPanel(page);
+    await page.locator('input[type="file"]').setInputFiles([FILES.stock]);
     await page.getByRole('button', { name: 'Load' }).first().click();
     await expect(page.locator('[role="row"]').first()).toBeVisible();
 
-    const docWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-    const viewport = page.viewportSize()?.width ?? 390;
-    // Only the grid itself may scroll sideways, never the document.
-    expect(docWidth).toBeLessThanOrEqual(viewport + 1);
+    // Only the grid itself may scroll sideways, never the document. Polled because
+    // the screen re-measures itself after the rows arrive, and named on failure:
+    // "it was wider" is not something anybody can act on.
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const over = document.documentElement.scrollWidth - window.innerWidth;
+            if (over <= 1) return 'ok';
+            const culprits: string[] = [];
+            for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) {
+              const b = el.getBoundingClientRect();
+              if (b.right > window.innerWidth + 1 && b.width > 0) {
+                culprits.push(`${el.tagName.toLowerCase()}.${(el.className ?? '').toString().split(' ')[0]}`);
+                if (culprits.length === 3) break;
+              }
+            }
+            return `${String(over)}px wider — ${culprits.join(', ') || 'nothing named'}`;
+          }),
+        { timeout: 5000, message: 'the document stays as wide as the window' },
+      )
+      .toBe('ok');
   });
 });

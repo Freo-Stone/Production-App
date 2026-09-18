@@ -1,8 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useCan } from '@/app/session';
+import { useFillBelow } from '@/app/useFillBelow';
+import { useMediaQuery } from '@/app/useMediaQuery';
 import { useView } from '@/app/useView';
 import { formatNumber } from '@/core/format';
+import { formatSince } from '@/core/dates';
 import { defaultView } from '@/core/defaults';
 import type { JobRow, StockRow } from '@/core/types';
 import { getSettings, latestJobsSnapshot, latestStockSnapshot, saveSettings } from '@/data/db';
@@ -12,17 +15,19 @@ import { parseExport, type ImportResult } from '@/lib/myob/importFile';
 import { DataTable, type ColumnDef } from '@/ui/DataTable';
 import { ViewToolbar } from '@/ui/DataTable/ViewToolbar';
 import { Icon } from '@/ui/Icon';
-import { AutoImportCard } from './SourcesAutoImport';
+import { AutoImportBar } from './SourcesAutoImport';
 import {
   Button,
   Card,
   Chip,
+  Disclosure,
   EmptyState,
+  Fact,
+  FactBar,
   Field,
   Segmented,
   Select,
   TextInput,
-  Tile,
   Toggle,
   toast,
   cx,
@@ -140,6 +145,15 @@ export function Sources() {
   const [search, setSearch] = useState('');
   const [location, setLocation] = useState('');
   const [showPlaceholders, setShowPlaceholders] = useState(false);
+  // Both panels start closed: the table is the reason this screen is opened. The
+  // empty states below carry a button that opens the import panel, so a device
+  // that has never imported is one tap from the drop zone rather than hunting
+  // for it.
+  const [importOpen, setImportOpen] = useState(false);
+  const [locationsOpen, setLocationsOpen] = useState(false);
+  // Below 640px the shell keeps 80px clear at the bottom for the phone nav.
+  const narrow = useMediaQuery('(max-width: 639px)');
+  const table = useFillBelow({ gap: narrow ? 92 : 16, min: 240 });
 
   const stock = useLiveQuery(() => latestStockSnapshot(), []);
   const jobs = useLiveQuery(() => latestJobsSnapshot(), []);
@@ -242,36 +256,51 @@ export function Sources() {
 
   const selectedLocations = new Set(settings?.sources.stockLocations ?? []);
 
+  // A file that lands in the tray must be visible with its Load button; a tray
+  // hidden behind a closed panel is worse than no tray at all. Choosing files is
+  // the one action that opens the panel by itself.
+  useEffect(() => {
+    if (staged.length > 0) setImportOpen(true);
+  }, [staged.length]);
+
   return (
     <div className="flex flex-col gap-3">
-      {/* ── Freshness ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <Tile
-          label="Stock export"
-          value={stock ? `${formatNumber(stock.rows.length, 0)} rows` : 'None'}
-          sub={stock ? `${stock.source} · ${new Date(stock.capturedAt).toLocaleString('en-AU')}` : 'Import the Item List [Summary]'}
-          tone={stock ? 'curing' : 'short'}
-        />
-        <Tile
-          label="Future jobs"
-          value={jobs ? `${formatNumber(jobs.rows.length, 0)} lines` : 'None'}
-          sub={jobs ? `${jobs.source} · ${new Date(jobs.capturedAt).toLocaleString('en-AU')}` : 'Import the Sales [Item Detail]'}
-          tone={jobs ? 'curing' : 'short'}
-        />
-        <Tile label="Locations" value={locations.length} sub={locations.join(', ') || '—'} />
-        <Tile
-          label="Placeholder dates"
-          value={formatNumber(placeholderCount, 0)}
-          sub="Lines dated years ahead — hidden from near-term planning"
-          tone={placeholderCount > 0 ? 'warn' : 'neutral'}
-        />
-      </div>
-
-      {/* ── Automatic import ───────────────────────────────────────────────── */}
-      {settings && exportStates ? <AutoImportCard settings={settings} states={exportStates} canWrite={canImport} /> : null}
+      {/* ── What is in, how current, and how it got here ───────────────────── */}
+      <FactBar stacked>
+        <span className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1">
+          <Fact
+            label="Stock"
+            value={stock ? `${formatNumber(stock.rows.length, 0)} rows` : 'none yet'}
+            sub={stock ? formatSince(stock.capturedAt) : 'nothing imported yet'}
+            tone={stock ? 'curing' : 'short'}
+          />
+          <Fact
+            label="Future jobs"
+            value={jobs ? `${formatNumber(jobs.rows.length, 0)} lines` : 'none yet'}
+            sub={jobs ? formatSince(jobs.capturedAt) : 'nothing imported yet'}
+            tone={jobs ? 'curing' : 'short'}
+          />
+          <Fact
+            label="Placeholders"
+            value={formatNumber(placeholderCount, 0)}
+            sub="dated years ahead, hidden from the matrix"
+            tone={placeholderCount > 0 ? 'warn' : 'ink'}
+          />
+        </span>
+        {settings && exportStates ? <AutoImportBar settings={settings} states={exportStates} canWrite={canImport} /> : null}
+      </FactBar>
 
       {/* ── Import ─────────────────────────────────────────────────────────── */}
-      <Card title="Import by hand" subtitle="Files are read in the browser; nothing is uploaded.">
+      <Disclosure
+        title="Import by hand"
+        detail={
+          staged.length > 0
+            ? `${String(staged.length)} file${staged.length === 1 ? '' : 's'} waiting`
+            : 'read in the browser, nothing is uploaded'
+        }
+        open={importOpen}
+        onOpenChange={setImportOpen}
+      >
         <div className="flex flex-col gap-2">
           <DropZone onFiles={(files) => void handleFiles(files)} busy={busy} />
 
@@ -306,13 +335,15 @@ export function Sources() {
             </ul>
           ) : null}
         </div>
-      </Card>
+      </Disclosure>
 
       {/* ── Locations ──────────────────────────────────────────────────────── */}
       {locations.length > 0 ? (
-        <Card
+        <Disclosure
           title="Locations counted as stock"
-          subtitle="Everything else in the export is ignored by the planning maths."
+          detail={`${String(selectedLocations.size)} of ${String(locations.length)} counted — the rest are ignored by the maths`}
+          open={locationsOpen}
+          onOpenChange={setLocationsOpen}
         >
           <div className="flex flex-wrap gap-1.5">
             {locations.map((name) => (
@@ -332,7 +363,7 @@ export function Sources() {
               </button>
             ))}
           </div>
-        </Card>
+        </Disclosure>
       ) : null}
 
       {/* ── Tables ─────────────────────────────────────────────────────────── */}
@@ -412,7 +443,9 @@ export function Sources() {
           )}
         </div>
 
-        <div className="h-[min(62vh,620px)] min-h-0">
+        {/* Down to the bottom of the window: the table is the reason this screen
+            is opened, so it gets everything the top of the screen does not need. */}
+        <div ref={table.ref} className="min-h-[240px]" style={table.height == null ? undefined : { height: table.height }}>
           {tab === 'stock' ? (
             <DataTable
               rows={stockRows}
@@ -425,7 +458,12 @@ export function Sources() {
                 <EmptyState
                   icon="sources"
                   title="No stock imported yet"
-                  body="Drop the Item List [Summary] export above to see on-hand quantities here."
+                  body="The Item List [Summary] export from MYOB. Files are read on this device; nothing is uploaded."
+                  action={
+                    <Button size="sm" variant="primary" onClick={() => setImportOpen(true)}>
+                      Choose the files
+                    </Button>
+                  }
                 />
               }
             />

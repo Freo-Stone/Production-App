@@ -180,7 +180,18 @@ export function DataTable<T>({
   const showTotals = view.showTotals && ordered.length > 0 && columns.some((c) => c.totals != null && c.totals !== 'none');
 
   return (
-    <div className="flex min-h-0 flex-col" style={height != null ? { height } : undefined}>
+    // With no `height`, "fill the parent" has to mean h-full. Without it this box
+    // takes its content's height, so the scroller below grows to the height of
+    // every row in the table (measured: 91,673px for 1,102 job lines), the virtualiser
+    // measures that as the visible window and renders everything, and the card
+    // around it — which clips, as cards do — cuts the rest off. The rows below the
+    // fold then belonged to no scroll: the wheel moved the page, the table stayed
+    // put, and the bottom of it was simply gone. Both screens that mount it this way
+    // had it; Sources showed twelve of 1,102 lines and no way to reach the rest.
+    <div
+      className={height == null ? 'flex h-full min-h-0 flex-col' : 'flex min-h-0 flex-col'}
+      style={height != null ? { height } : undefined}
+    >
       <div
         ref={scroller}
         data-density={view.density}

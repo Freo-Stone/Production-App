@@ -23,11 +23,14 @@ An import never enables a code. A code that appears in an open job gets
 `seenInJobs = true`, which is what the default **In open jobs** filter shows;
 ticking **Current** is the shop's decision, and it survives every later import.
 
-## Tiles and filters
+## The line along the top, and the filters
 
-Tiles: **Codes known** (both exports), **Current range**, **Needs setting**
-(current but missing route, unit or tray yield), **Current, no demand** (enabled
-but no open job line — the ones to consider switching off).
+Four counts on one line: **Codes known** (both exports), **Current range**,
+**Needs setting** (current but missing route, unit or tray yield), **Current, no
+demand** (enabled but no open job line — the ones to consider switching off).
+They were four tiles, which cost a fifth of the screen to say four numbers; the
+board underneath is where the work is, and it now runs to the bottom of the
+window (`useFillBelow`, and `docs/screens/sources.md` for the whole contract).
 
 Filters: In open jobs (default), Current range, Needs setting, Shotblast, All
 codes. The filter box matches code, description or note.
