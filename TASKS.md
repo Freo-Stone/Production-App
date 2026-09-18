@@ -524,6 +524,42 @@ blue slab. On screen that is a broken-image box, not a shop's logo.
   white. The tab icon and the header tile are still checked byte for byte against
   each other, and every fill in them against the palette measured out of the logo.
 
+## Nothing imported by itself, and the screen would not say why · fixed
+
+*"nothing is importing?"* — and the screen could not tell him. The switch said
+**On**, the interval said **every 15 min**, and both files said **Not checked**,
+which is three facts that add up to a broken app. The fourth fact was sitting in
+`checkOnce`, unwritten anywhere: `this device has no repository token`. A token is
+not part of a login — it lives on its own in one device's storage, is never pushed
+to the other devices, and until this was said out loud a switched-on, online,
+entitled device was simply deaf, and looked like it was working.
+
+- `exportBlockerReason` in `src/data/exportSync.ts` is now the one sentence for both
+  the check and the screen, so they cannot disagree about why nothing arrived. It
+  names the missing token and a repository that was never set, on top of the switch,
+  the role and the signal the synchronous rule already knew.
+- `AutoImportBar` says it: **⚠ Not checking · this device has no repository token —
+  Settings**, one control that goes to the screen where it is fixed, with the fix
+  spelled out under Details — that the token is for `Production-App-Data`, that
+  **Test connection** says whether it works, and that each device needs its own.
+- On a device that has never checked *and* cannot check, the two per-file chips step
+  aside for the reason. They said "Not checked" twice, which is this sentence said
+  badly, and the line they wrapped onto is a row of stock a phone cannot see. The
+  layout budget in `e2e/layout.spec.ts` is what caught that.
+- A hand-off is still a hand-off: **"Check now"** already reported the reason
+  (there is a test for it), and pressing it remains the way to be sure rather than
+  efficient. What was missing was that nothing on the screen invited the press.
+- The tests that reach a repository are the ones that hold a token, which this suite
+  may not. So `e2e/exports.spec.ts` now proves the device a shop owner actually
+  lands on, and the per-file chips are proven one layer down in
+  `test/ui.autoImport.test.tsx`, where the line can be handed any state at all.
+
+What is *not* fixed here, and he should know: the two files still have to arrive in
+the data repository. `exports/location.xlsx` and `exports/future.xlsx` are read from
+wherever Settings says; if the Power Automate flow has never written them, the chips
+will read **File not found** the moment a token is in place. That is the next thing
+to look at on his machine, and the screen will name it exactly.
+
 ## M12 — The sync loop · planned, not built
 
 `src/data/syncEngine.ts` is finished and tested — pull, merge, protect local

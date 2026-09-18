@@ -73,9 +73,16 @@ function openDetails(host: HTMLElement): void {
   click(buttonNamed(host, 'Details'));
 }
 
-async function renderCard(canWrite: boolean): Promise<Rendered> {
+async function renderCard(canWrite: boolean, blocker?: string | null): Promise<Rendered> {
   const settings = await getSettings();
-  const host = render(<AutoImportBar settings={settings} states={states()} canWrite={canWrite} />);
+  const host = render(
+    <AutoImportBar
+      settings={settings}
+      states={states()}
+      canWrite={canWrite}
+      {...(blocker !== undefined ? { blocker } : {})}
+    />,
+  );
   await settle();
   return host;
 }
@@ -175,5 +182,33 @@ describe('the automatic import line', () => {
     expect(byText(host, 'exports/location.xlsx')).toBeTruthy();
     expect(host.querySelectorAll('input').length).toBe(0);
     expect(host.querySelectorAll('select').length).toBe(0);
+  });
+  it('says why it is not checking, and where to fix it', async () => {
+    // The complaint this exists to answer: the switch said On, both chips said
+    // "Not checked", and the screen had no third thing — the reason.
+    const h = await renderCard(true, 'this device has no repository token');
+    expect(byText(h.host, 'Not checking')).toBeTruthy();
+    expect(byText(h.host, 'this device has no repository token')).toBeTruthy();
+
+    // One control, reason and way out in it: the row shares a line with the table.
+    click(buttonNamed(h.host, '— Settings'));
+    expect(window.location.hash).toBe('#/settings');
+    h.unmount();
+  });
+
+  it('says the fix as well as the reason, under Details', async () => {
+    const h = await renderCard(true, 'this device has no repository token');
+    openDetails(h.host);
+    await settle();
+    expect(byText(h.host, 'Test connection')).toBeTruthy();
+    expect(byText(h.host, 'Each device needs its own')).toBeTruthy();
+    h.unmount();
+  });
+
+  it('stays out of the way when the device can check', async () => {
+    const h = await renderCard(true, null);
+    expect(h.host.textContent ?? '').not.toContain('Not checking');
+    expect(h.host.textContent ?? '').not.toContain('— Settings');
+    h.unmount();
   });
 });

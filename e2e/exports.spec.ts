@@ -30,20 +30,39 @@ test.describe('automatic export import', () => {
     await openApp(page, '/sources');
   });
 
-  test('the line says how the files arrive and what each one did', async ({ page }) => {
+  // What one device can show is one device's state. The suite cannot hold a real
+  // token, so what it can prove here is the device a shop owner actually lands on:
+  // switched on, online, and never handed a token. The chips each file gets — the
+  // imported one, the failed one, the missing one — are proven in
+  // `test/ui.autoImport.test.tsx`, which can hand the line whatever states it likes.
+  test('a device that cannot check says why, and takes him where it is fixed', async ({ page }) => {
     const bar = autoBar(page);
     await expect(bar).toBeVisible();
     await expect(bar.getByText('every 15 min')).toBeVisible();
-
-    // Both files, each with its own answer, so a mirror writing to the wrong name
-    // is visible rather than mysterious.
-    await expect(bar.locator('[data-export-kind="location"]')).toBeVisible();
-    await expect(bar.locator('[data-export-kind="future"]')).toBeVisible();
     await expect(bar.getByRole('button', { name: 'Check now' })).toBeVisible();
 
-    // A device that has never checked says so, per file, instead of looking broken.
-    await expect(bar.locator('[data-export-kind="location"]')).toContainText('Not checked');
-    await expect(bar.locator('[data-export-kind="future"]')).toContainText('Not checked');
+    const blocker = bar.locator('[data-auto-import-blocker]');
+    await expect(blocker).toBeVisible();
+    await expect(blocker).toContainText('this device has no repository token');
+
+    // The two per-file chips step aside. On a device that has never checked and
+    // cannot check, "Not checked" twice is the same sentence said badly — and the
+    // line they used to wrap onto is room the stock table wants back.
+    await expect(bar.locator('[data-export-kind="location"]')).toHaveCount(0);
+    await expect(bar.locator('[data-export-kind="future"]')).toHaveCount(0);
+
+    // The reason is a way out, not a complaint.
+    await blocker.getByRole('button').click();
+    await expect(page).toHaveURL(/#\/settings/);
+  });
+
+  test('the reason says what a device with a token does not have to read', async ({ page }) => {
+    // The other half of the same coin: the sentence is about the device, so it is
+    // said once, and it does not shadow anything the drawer has to say.
+    const details = await openDetails(page);
+    await expect(details).toContainText('Test connection');
+    await expect(details).toContainText('Each device needs its own');
+    await expect(details.getByLabel('Path in the repository')).toHaveCount(2);
   });
 
   test('details hold the paths, and both are on screen to be read', async ({ page }) => {
@@ -96,9 +115,9 @@ test.describe('automatic export import', () => {
     await expect(page.locator('[data-toaster]')).toContainText('this device has no repository token');
 
     await page.reload({ waitUntil: 'load' });
-    // The line names the file it is talking about, so the change is visible before
-    // anything is opened.
-    await expect(autoBar(page).locator('[data-export-kind="location"]')).toContainText('stock this week.xlsx');
+    // The path is the thing that survived, which is what a hand-off to the mirror
+    // needs to be sure of. This device cannot check, so the file's own chip is not
+    // on the line — the reason is — but the drawer still names what it would read.
     const again = await openDetails(page);
     await expect(again.getByLabel('Path in the repository').first()).toHaveValue('exports/stock this week.xlsx');
   });

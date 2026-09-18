@@ -8,12 +8,14 @@ import {
   checkExports,
   clearExportStates,
   EXPORT_KINDS,
+  exportBlockerReason,
   exportPaths,
   exportWatchBlocker,
   readExportStates,
   type ExportReader,
   type ExportStateMap,
 } from '@/data/exportSync';
+import { setDeviceToken } from '@/data/auth';
 import { banner, workbookBytes } from './support/buildWorkbook';
 import { signInForTests } from './support/who';
 
@@ -276,6 +278,24 @@ describe('whether a check is worth starting', () => {
 
     signInForTests('viewer');
     expect(exportWatchBlocker(settings)).toBe('this device is signed in as a viewer');
+  });
+
+  it('names the missing token, which is the reason a switched-on device imports nothing', async () => {
+    // The synchronous rule above cannot see this one: a token is its own IndexedDB
+    // key, per device, never part of a login and never pushed to the other devices.
+    // So a device can be switched on, online, entitled and still deaf — and until the
+    // reason was said out loud, the Sources screen showed "Not checked" forever and
+    // volunteered nothing else, which reads as an app that is broken.
+    await reset();
+    const settings = await getSettings();
+    expect(await exportBlockerReason(settings)).toBe('this device has no repository token');
+
+    await setDeviceToken('synthetic-token');
+    expect(await exportBlockerReason(settings)).toBeNull();
+
+    // A token pointed at nothing is just as deaf, and says which half is missing.
+    const noRepo: Settings = { ...settings, sync: { ...settings.sync, githubOwner: '', githubRepo: '  ' } };
+    expect(await exportBlockerReason(noRepo)).toBe('no repository is set in Settings');
   });
 
   it('takes the paths from Settings, trimmed, so a stray space is not a missing file', async () => {

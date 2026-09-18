@@ -29,7 +29,7 @@ import type { Settings } from '@/core/types';
 import { parseExport } from '@/lib/myob/importFile';
 import { getSettings } from './db';
 import { db } from './db';
-import { clientForDevice } from './auth';
+import { clientForDevice, getDeviceToken } from './auth';
 import { logEvent } from './events';
 import { commitImport } from './importFlow';
 import { can } from './principal';
@@ -148,6 +148,28 @@ export function exportWatchBlocker(settings: Settings, online = true): string | 
   return null;
 }
 
+/**
+ * Why this device is not going to import anything, in the words a screen shows —
+ * `null` means go ahead.
+ *
+ * The synchronous rule above cannot see the last reason, and it is the common one:
+ * the token lives in its own IndexedDB key, per device, so a signed-in device that
+ * has never been given one is switched on, online, entitled, and deaf. A device in
+ * that state used to sit on the Sources screen showing "Not checked" forever, with
+ * the real sentence written nowhere at all.
+ */
+export async function exportBlockerReason(settings: Settings, online = true): Promise<string | null> {
+  const rule = exportWatchBlocker(settings, online);
+  if (rule !== null) return rule;
+  // `getDeviceToken` answers with an empty string, not null — a device that has
+  // never been handed one has nothing, and `'' == null` is false.
+  const token = await getDeviceToken();
+  if (token === '') return 'this device has no repository token';
+  const { githubOwner, githubRepo } = settings.sync;
+  if (githubOwner.trim() === '' || githubRepo.trim() === '') return 'no repository is set in Settings';
+  return null;
+}
+
 async function checkOnce(options: { force?: boolean; client?: ExportReader; settings?: Settings }): Promise<ExportCheckResult> {
   const settings = options.settings ?? (await getSettings());
   const at = Date.now();
@@ -155,8 +177,18 @@ async function checkOnce(options: { force?: boolean; client?: ExportReader; sett
   const paths = exportPaths(settings);
   const declined = (reason: string): ExportCheckResult => ({ at, ran: false, reason, states, imported: 0, failed: 0 });
 
-  if (!settings.sources.exports.autoImport && !options.force) return declined('automatic import is switched off');
-  if (!can('sources.import')) return declined('this device is signed in as a viewer');
+  // One sentence for the screen and for this refusal, so they cannot disagree about
+  // why nothing arrived. "Check now" overrides the switch only: a viewer, or a device
+  // with no token, has nothing a button can fix.
+  const blocked = await exportBlockerReason(settings);
+  if (blocked !== null && !(options.force && blocked === 'automatic import is switched off')) {
+    // An injected reader is the seam the tests use to mean "assume this device can
+    // read the repository", so it stands in for the two connection-shaped reasons and
+    // nothing else. Who is holding the device, whether the switch is on, and whether
+    // there is a signal are real rules that no fixture can grant.
+    const aboutTheConnection = blocked === 'this device has no repository token' || blocked === 'no repository is set in Settings';
+    if (!(options.client != null && aboutTheConnection)) return declined(blocked);
+  }
 
   const client = options.client ?? (await clientForDevice(settings));
   if (client == null) return declined('this device has no repository token');

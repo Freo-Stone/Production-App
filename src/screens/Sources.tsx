@@ -8,7 +8,7 @@ import { formatNumber } from '@/core/format';
 import { defaultView } from '@/core/defaults';
 import type { JobRow, StockRow } from '@/core/types';
 import { getSettings, latestJobsSnapshot, latestStockSnapshot, saveSettings } from '@/data/db';
-import { readExportStates } from '@/data/exportSync';
+import { exportBlockerReason, readExportStates } from '@/data/exportSync';
 import { commitImport, type ImportCommit } from '@/data/importFlow';
 import { parseExport, type ImportResult } from '@/lib/myob/importFile';
 import { DataTable, type ColumnDef } from '@/ui/DataTable';
@@ -156,6 +156,25 @@ export function Sources() {
   const jobs = useLiveQuery(() => latestJobsSnapshot(), []);
   const settings = useLiveQuery(() => getSettings(), []);
   const exportStates = useLiveQuery(() => readExportStates(), []);
+  // Why this device is not pulling anything, in the words the line under the header
+  // shows. Read with the settings, and read again whenever this screen is opened, so
+  // a token pasted on Settings is believed the moment he comes back here.
+  const [blocked, setBlocked] = useState<string | null>(null);
+  useEffect(() => {
+    if (!settings) return;
+    let live = true;
+    void exportBlockerReason(settings, globalThis.navigator?.onLine !== false)
+      .then((reason) => {
+        if (live) setBlocked(reason);
+      })
+      .catch(() => {
+        // A reason we could not read is not a reason to claim everything is fine.
+        if (live) setBlocked(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [settings]);
   const canImport = useCan('sources.import');
 
   const stockView = useView('sources.stock', defaultView('sources.stock', STOCK_COLUMNS.map((c) => c.key)));
@@ -265,7 +284,7 @@ export function Sources() {
           one line with a decision in it. */}
       {settings && exportStates ? (
         <div className="flex justify-end">
-          <AutoImportBar settings={settings} states={exportStates} canWrite={canImport} />
+          <AutoImportBar settings={settings} states={exportStates} canWrite={canImport} blocker={blocked} />
         </div>
       ) : null}
 

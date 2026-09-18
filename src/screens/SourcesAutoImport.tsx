@@ -13,6 +13,7 @@
  */
 
 import { useState } from 'react';
+import { navigate } from '@/app/router';
 import { runExportCheck } from '@/app/exportWatch';
 import { formatClock, formatSince } from '@/core/dates';
 import { formatNumber } from '@/core/format';
@@ -80,10 +81,13 @@ export function AutoImportBar({
   settings,
   states,
   canWrite,
+  blocker = null,
 }: {
   settings: Settings;
   states: ExportStateMap;
   canWrite: boolean;
+  /** Why this device cannot check, or `null` when it can. See `exportBlockerReason`. */
+  blocker?: string | null;
 }) {
   const [checking, setChecking] = useState(false);
   const [details, setDetails] = useState(false);
@@ -124,9 +128,41 @@ export function AutoImportBar({
         </b>
       </span>
 
+      {/* The switch says it is on, the two chips say nothing happened, and until
+          this sentence existed the screen offered no third thing: the reason. A
+          device that is switched on, online and entitled but has never been handed a
+          token sits here forever, and it looked like the app was broken. */}
+      {blocker ? (
+        // One control, not a sentence and a button: this row shares its line with the
+        // table, and on a phone every wrapped line is a row of stock that is not
+        // visible. The reason and the way out are the same words.
+        <span data-auto-import-blocker className="flex min-w-0 items-center gap-1.5">
+          <Chip tone="warn" icon="alert" title="Automatic import cannot run on this device">
+            Not checking
+          </Chip>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => navigate('/settings')}
+            // Truncated, not wrapped and not left to push: a sentence this long is
+            // wider than a phone, and the screen must not gain a sideways scroll
+            // because the app is finally explaining itself. The whole reason is in
+            // the title and, in full, under Details.
+            className="max-w-[26ch] truncate"
+            title={`${blocker} — set it on the Settings screen`}
+          >
+            {blocker} — Settings
+          </Button>
+        </span>
+      ) : null}
+
       {/* One per file: enough to answer "did it come in" without opening anything. */}
       {EXPORT_KINDS.map((kind) => {
         const state = states[kind];
+        // While this device cannot check at all and has never checked, the reason
+        // above is the whole story. Two chips reading "Not checked" say it worse, and
+        // the line they wrap onto is room the table wants back.
+        if (blocker !== null && state.checkedAt == null) return null;
         const chip = STATUS_CHIP[state.status];
         const path = kind === 'location' ? config.locationPath : config.futurePath;
         return (
@@ -202,6 +238,17 @@ export function AutoImportBar({
                   onChange={(e) => patch({ intervalMinutes: Number(e.currentTarget.value) })}
                 />
               </Field>
+            ) : null}
+            {blocker ? (
+              <span className="basis-full text-xs text-warn">
+                {/* The sentence above is the diagnosis; this one is the fix, so that
+                    the screen does not stop at being right. */}
+                Nothing can be pulled until that is fixed. On Settings, the repository card
+                takes a token for <b className="font-650">Production-App-Data</b> — one that can
+                read its contents — and <b className="font-650">Test connection</b> says whether it
+                works. Each device needs its own: the token is not part of a login and is never
+                sent to the other devices.
+              </span>
             ) : null}
             <span className="min-w-40 flex-1 text-xs text-ink3">
               Checked while this app is open and online. There is no server, so a laptop that stayed shut over the
