@@ -7,6 +7,7 @@ import { Matrix } from '@/screens/Matrix';
 import { People } from '@/screens/People';
 import { ProductionLog } from '@/screens/ProductionLog';
 import { Products } from '@/screens/Products';
+import { Schedule } from '@/screens/Schedule';
 import { Settings } from '@/screens/Settings';
 import { MyobEntry } from '@/screens/MyobEntry';
 import { Shotblast } from '@/screens/Shotblast';
@@ -19,7 +20,6 @@ import { can as roleAllows, ROLE_LABEL, type Capability } from '@/core/roles';
 import { seedIfEmpty } from '@/data/db';
 import { Icon } from '@/ui/Icon';
 import { Button, Card } from '@/ui/primitives';
-import { UnderConstruction } from '@/screens/UnderConstruction';
 
 /**
  * Route table. Each entry is a screen in the build order; until a screen is
@@ -34,13 +34,7 @@ function screenFor(path: string) {
     case 'jobs':
       return <FutureJobs />;
     case 'schedule':
-      return (
-        <UnderConstruction
-          title="Schedule"
-          icon="schedule"
-          blurb="What needs making, and the latest day it can start."
-        />
-      );
+      return <Schedule />;
     case 'entry':
       return <Entry />;
     case 'log':

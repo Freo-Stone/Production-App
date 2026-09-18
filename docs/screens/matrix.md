@@ -104,6 +104,12 @@ dated 4/04/2040 goes into **Beyond** rather than into a day nobody can plan arou
 — both of them are still demand, and [Future jobs](future-jobs.md) is where the
 late ones get read, one order at a time.
 
+This board answers *what is due on this day*. [The making plan](schedule.md) answers
+the other question — **by when must this have started** — by taking the shortfall for
+a code off its promise date and subtracting the cure and handling days. Same demand,
+same `productPosition`, read from the other end: a row that is red here is *already
+behind* there.
+
 ## On a phone
 
 Forty-two columns sideways on a 390px screen is not a board. A phone shows the

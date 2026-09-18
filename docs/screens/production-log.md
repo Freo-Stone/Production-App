@@ -35,7 +35,7 @@ better a build that stops than a log with blank rows in it.
 
 | Group | What is in it | A line reads |
 | --- | --- | --- |
-| On the floor | making logged, racks moved, parts parted off, blasts, write-offs, take-backs | `2026-09-14-01 off the racks — 8 trays ready` |
+| On the floor | making logged, racks moved, parts parted off, blasts, write-offs, take-backs, and what the shop put on the plan | `2026-09-14-01 off the racks — 8 trays ready` |
 | MYOB | stock keyed in, and racks taken back out of a run | `2026-09-14-01 keyed into MYOB — run 18/09/2026 · 8 trays · 16.00 GL4 · ref INV-42` |
 | Products | exports loaded, product settings changed, products reordered | `stock import from location.xlsx: 2691 rows, 2342 new codes` |
 | People | accounts, passcodes, devices, sign-ins | `Test Person signed in as owner` |

@@ -32,7 +32,7 @@ export const LEDGER_FAMILIES: LedgerFamilyMeta[] = [
   {
     key: 'floor',
     label: 'On the floor',
-    hint: 'Making logged, racks moved, parts parted off, blasts, and write-offs.',
+    hint: 'Making logged, racks moved, parts parted off, blasts, write-offs, and what the shop put on the plan.',
   },
   {
     key: 'myob',
@@ -72,6 +72,9 @@ export const LEDGER_ACTIONS: Record<EventAction, LedgerActionMeta> = {
   'batch.writeOff': { family: 'floor', label: 'Written off' },
   'batch.undo': { family: 'floor', label: 'Taken back' },
   'batch.enterMyob': { family: 'myob', label: 'Keyed into MYOB' },
+  'plan.add': { family: 'floor', label: 'Put on the plan' },
+  'plan.start': { family: 'floor', label: 'Plan started' },
+  'plan.cancel': { family: 'floor', label: 'Taken off the plan' },
   'import.commit': { family: 'stock', label: 'Export loaded' },
   'export.import': { family: 'stock', label: 'Export picked up' },
   'export.failed': { family: 'stock', label: 'Export could not be used' },

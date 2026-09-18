@@ -22,3 +22,6 @@ test/local/
 shots/
 
 __pycache__/  # the brand script, imported to redraw the vectors on its own
+
+# Scratch browser spec used to capture screenshots into shots/ (ignored).
+e2e/_shots.spec.ts

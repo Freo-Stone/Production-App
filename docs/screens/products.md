@@ -69,6 +69,13 @@ Picking rows opens a bulk strip: set route, unit or cure days for everything
 ticked, or mark/unmark the current range in one go. One audit line per bulk
 action, not one per row.
 
+Route and cure days are not bookkeeping for their own sake. The Matrix tones, the cure
+clocks on [Curing](curing.md), and every start date on [The making plan](schedule.md)
+are worked out of them. So a code with no route is demand everywhere and unplannable
+in one place: the plan will show how much is short and the day it would have to start,
+but refuses to write the make down until the shop says whether a blasting day comes
+off the promise.
+
 ## Order
 
 Rows are in manual order (`Product.rank`) so the screen can be arranged the way

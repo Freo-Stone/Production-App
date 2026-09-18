@@ -606,7 +606,7 @@ wherever Settings says; if the Power Automate flow has never written them, the c
 will read **File not found** the moment a token is in place. That is the next thing
 to look at on his machine, and the screen will name it exactly.
 
-## Seven pages that said "not wired up yet" · being built, one at a time
+## Seven pages that said "not wired up yet" · done
 
 > *"i need you to go through every page as most are still saying it needs wiring up"*
 
@@ -647,11 +647,15 @@ jump from a Matrix row.
 
 M5 is in under *Daily entry*: see above, and `docs/screens/entry.md`. The curing
 count in the menu moved off zero the moment the first rack was logged, which is the
-first time in this app's life a badge has meant anything. Six of the seven are now
-real — **Daily entry**, **Curing**, **Shotblast**, **MYOB entry** and the
-**Production log** and **Future jobs**, each in its own section above — and the stub
-that goes next is **Schedule**, the one screen that needs a writer of its own before it
-can show anything: nothing in this app creates a `planItem` yet. It turned out the order
+first time in this app's life a badge has meant anything. **All seven are real now** —
+**Daily entry**, **Curing**, **Shotblast**, **MYOB entry**, **Production log**, **Future
+jobs** and **The making plan**, each in its own section above. `UnderConstruction.tsx` is
+deleted, so there is no stub left to navigate to, and the plan's own browser test asserts
+the words *is not wired up yet* appear nowhere on the screen. The last one was the only
+stub that needed a writer before it could show anything: nothing in this app created a
+`planItem`, so M12 came with `addPlanItem` / `startPlanItem` / `cancelPlanItem`, three
+new ledger actions, and the rule that a plan line is a proposal the shop presses — never
+a write the app makes on its own. It turned out the order
 book did need its own screen after all. The jobs table on Data sources answers *what did
 the export contain*; the new one answers *can we ship it* — the same rows, two different
 questions, and only one of them is opened on the floor.

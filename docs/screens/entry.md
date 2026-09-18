@@ -104,6 +104,10 @@ a real number when this screen existed.
 
 ## What it does not do
 
+- It is not where a make is *planned*. [The making plan](schedule.md) says what has to
+  be made and by when it had to start; this is where a rack actually came off the bench.
+  A plan line is worth nothing as cover until it is logged here — and the moment it is,
+  the order book counts it.
 - No editing a logged rack's trays. Take it back and log it again — one action
   either way, and the ledger keeps both.
 - No writing off, yet. That belongs with the curing and shotblast screens.

@@ -14,7 +14,7 @@ phone.
 This screen does the arithmetic. Every open line, and against it what this device can
 already point at, and therefore what is *still* genuinely owed.
 
-Three other screens touch the same rows, from other directions:
+Four other screens touch the same rows, from other directions:
 
 - **Data sources** shows the export exactly as it arrived — every column, the
   diagnostics, the rows the parser skipped. That is the import-facing view, and it is
@@ -22,6 +22,10 @@ Three other screens touch the same rows, from other directions:
 - **The Matrix** spreads demand across days so you can see the making load. Its board
   starts at today, so an order promised last week is not on it.
 - **Products** answers the same cover question per *code*, against a target level.
+- **[The making plan](schedule.md)** takes what is still owed and turns it into work:
+  one row per code per promised day, and the last day each make could have started and
+  still landed. This screen stops at *can we ship it*; that one goes on to *so what has
+  to be made, and when*.
 
 This one is order-facing: customer, order number, promised date, and whether we can
 ship it.

@@ -344,6 +344,15 @@ body {
     white-space: normal;
     line-height: 1.15;
   }
+  /* A row is one fixed height and the grid is virtualised, so a wrapped cell can
+     never be allowed to grow past it: two lines, then an ellipsis. The whole value
+     is on the cell as a title, and on the screens that have one, in the row's card. */
+  .dt-cell[data-wrap='true'] > span {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   .dt-cell:not([data-wrap='true']) > span {
     overflow: hidden;
     text-overflow: ellipsis;
