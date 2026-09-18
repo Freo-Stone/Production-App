@@ -188,14 +188,14 @@ Three modules, in that order:
 `dueToAdvance` is here and wired to nothing yet: it answers "which racks are due"
 using `readyAt`, and the curing screen is the one that will call it.
 
-## M6 — Curing and shotblast views · curing done, shotblast to go
+## M6 — Curing and shotblast views · done
 
 What is curing and until when, what is waiting to be blasted, and what becomes
 ready. `blastingCompletesCure` in settings decides whether blasting ends curing
-early. **Curing is in** — `/#/curing`, `docs/screens/curing.md`, and the story of
-it is under *The racks, and what came off them*, above. Shotblast is next: the
-blaster's own queue, and the partial-blast split that `parentBatchId` was waiting
-for.
+early. Both views are in: **Curing** at `/#/curing` under *The racks, and what
+came off them*, and **Shotblast** at `/#/shotblast` under *The blaster, and the
+rack that came out in two pieces* — which is where the partial-blast split that
+`parentBatchId` had been waiting for finally arrived.
 
 ## M7 — MYOB entry queue
 
@@ -644,7 +644,10 @@ jump from a Matrix row.
 
 M5 is in under *Daily entry*: see above, and `docs/screens/entry.md`. The curing
 count in the menu moved off zero the moment the first rack was logged, which is the
-first time in this app's life a badge has meant anything.
+first time in this app's life a badge has meant anything. Three of the seven are now
+real — **Daily entry**, **Curing** and **Shotblast**, each in its own section above —
+and the stub that goes next is MYOB entry, because that is where racks that have come
+off the racks actually leave the app.
 
 **Found on the way, to fix rather than leave.** The Matrix cannot resize, hide or
 reset its day columns (the day keys are not in the view's declared keys, so a
@@ -742,6 +745,103 @@ the phone project (which starts narrow) and the desktop project (which never
 narrows) both passed. `test/setup.ts`'s media stub can now be moved — `setMediaWidth`
 crosses the breakpoint inside a jsdom test — and `test/ui.curing.test.tsx` fails
 loudly if the hook order comes back.
+
+## The blaster, and the rack that came out in two pieces · done
+
+> *"Dont ask me any more questions you decide the best path to completion."*
+
+He said that once, early on, and it has been the instruction for every screen since:
+choose the order, choose the words, take the trade-off, and write down what was
+chosen and why so it can be argued with afterwards. This is the third of the seven
+stubs. Daily entry makes racks, Curing says when they come off, and this is the
+screen nobody else can answer for, because a blast is a thing that happened to a
+pallet at a machine.
+
+Three modules, in the same order as the two before it:
+
+- `src/core/shotblast.ts` — the rules, pure. What the machine is *owed* (still on
+  the floor, a shotblast make, quantity greater than what has been blasted — which
+  is not the same question as "which stage is it standing in", and the file says
+  so); the three lists and their order; the split's arithmetic; and `blastProblem`,
+  which answers "can this be blasted, and how much of it" in one sentence.
+- `src/data/batchRepo.ts` — `startBlast`, `finishBlast`, `racksAwaitingBlast`.
+  Gated by `production.record` before anything is read, one transaction per
+  decision, the rule re-checked inside it, and the ledger carrying the words, in the
+  numbers the shop actually reads: `2026-09-13-01 on the blaster — 8 trays in`,
+  `2026-09-13-01 through the blaster — all 8 trays out`, `2026-09-13-01 through the
+  blaster — 3 of 8 trays out`, `2026-09-13-02 — the other 5 trays off
+  2026-09-13-01, still to be blasted`. A refusal writes nothing at all.
+- `src/screens/Shotblast.tsx` — the queue. *On the blaster*, then *Waiting for the
+  blaster* in two sections: **Cure is done — only the blast is left** above **Still
+  curing**, because a rack that has finished hardening and is only waiting on the
+  machine is the one holding up an invoice. Two buttons where a rack is standing in
+  the machine, three where it is waiting: the next step, the step that skips ahead,
+  and the dialog last.
+
+Four decisions were worth the argument:
+
+**The trays that come out keep the number on the label.** A part blast splits a
+rack, and something has to keep the batch number: the blasted half does, because
+that is the pallet that went in and it owns the making date, the cure clock and the
+history. The rest becomes a new batch with the day's next number and
+`parentBatchId` pointing back — `2026-09-13-01` stays itself with 3 trays blasted,
+and the other 5 trays become `2026-09-13-02`, still needing theirs. The other way
+round leaves a half-blasted pallet carrying a number that says it was finished.
+
+**A blast does not make a rack `ready`.** It puts it back on the racks — stage
+`curing` — and `readyAt` answers whether it can be sold, which on this shop's
+settings (`blastingCompletesCure`, on) is immediately, so the Curing screen is
+offering it as *Off the racks now* before the toast has cleared. Setting the stage
+here would be a second function answering a question one function already answers,
+and the two would drift.
+
+**The queue counts what is owed; the menu badge counts what stage says.** A
+shotblast rack that somebody moved back to `curing` is in the queue and not on the
+badge. Both are right, they answer different questions, and neither is trimmed to
+match the other — same reasoning as the two counts on the Curing screen.
+
+**The trays box starts empty.** It is the dialog for *Part of it*, so the person
+opening it means fewer than the whole rack. Pre-filled with the rack's own count it
+would record the whole thing on a stray Enter, which is the one mistake this dialog
+must not be able to make. It asks "how many trays went through the blaster?" until a
+number is in, and the sentence below says what happens to the rest before it
+happens: *3 trays come out blasted and keep 2026-09-13-01. The other 5 become their
+own rack, still to be blasted.*
+
+There is no undo for a recorded blast. A blast is evidence about a physical event;
+a wrong one is corrected by writing the difference off with a reason, or by logging
+the rack again, and the ledger shows whichever happened.
+
+**The screenshots found two bugs that were not in this screen.** The card header
+kept the title and the count chips in one unwinding flex row: on a phone the chips
+won, and the most important heading on the page read **"The…"**. `Card`'s header
+wraps now, with a real minimum width on the title so the chips drop to a second
+line. The dialog sheet was worse — its title was truncated the same way, and its
+footer ran past the bottom of the viewport: measured on a Pixel 7 at 844px tall,
+the sheet's bottom was at **868** and both footer buttons sat at 815–859, under the
+phone's home strip, with no safe-area padding while the tab bar has had one all
+along. The Modal header wraps and lets its title onto two lines ("How much of
+2026-09-13-01 came out?" is a question, and stops being one when cut off), and the
+footer carries `env(safe-area-inset-bottom)`. Measured again: bottom 844, buttons
+791–835, title whole. Both fixes are in `src/ui/primitives.tsx`, so the write-off
+dialog, the product drawer and every other card in the app got them too.
+
+**A browser test caught its own race.** The split test asked for
+`toHaveCount(1)` after the part blast — which was already true *before* it, the
+queue holding one rack either way — so it read the number off the row that was
+there beforehand and failed on `not.toBe(original)`. The screen had been right all
+along, as the toast in the error context proved. It now waits for the number that
+went in to leave the queue before reading the one that came out: assert the content
+changes, not just the count.
+
+Verified: **451 unit tests across 34 files** (20 rules, 16 writers, 17 screen,
+including the desktop-to-phone breakpoint regression that a short-circuited
+`useIsCompact() || useIsCoarsePointer()` would break), the **full browser suite at
+225 passed and 6 skipped** on desktop, Pixel 7 and Firefox with 18 new shotblast
+tests, `tsc --noEmit` clean, **33 build checks at both `/` and `/Production-App/`**,
+and `check:worker` green — the first run of which failed because `dist` had just
+been built at the Pages base for the check before it; rerun against its own build,
+it passes, and the note is here so nobody chases that ghost twice.
 
 ## M12 — The sync loop · planned, not built
 

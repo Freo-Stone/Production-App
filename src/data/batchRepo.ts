@@ -11,7 +11,8 @@ import {
 import { moveProblem, onTheRacks } from '@/core/curing';
 import { dayStart } from '@/core/dates';
 import { formatNumber } from '@/core/format';
-import { uid } from '@/core/ids';
+import { formatBatchNo, uid } from '@/core/ids';
+import { awaitsBlast, blastProblem, splitBlast } from '@/core/shotblast';
 import type { Batch, BatchStage } from '@/core/types';
 import { db, getSettings } from '@/data/db';
 import { logEvent } from '@/data/events';
@@ -21,7 +22,8 @@ import { actorStamp, assertCan } from '@/data/principal';
  * Writing production down.
  *
  * This is the only place in the app that writes a batch: creating one, moving it
- * between stages, writing it off, and taking one back. Everything the rest of the
+ * between stages, putting it through the blaster — including splitting a rack when
+ * only part of it went through — writing it off, and taking one back. Everything the rest of the
  * make side needs — curing, shotblast, the MYOB queue, the log — reads records
  * that were written here, which is why the rules are kept narrow and loud:
  *
@@ -305,6 +307,135 @@ export async function racksOnTheClock(): Promise<Batch[]> {
 export async function readyRacks(): Promise<Batch[]> {
   const rows = await db.batches.where('stage').equals('ready').toArray();
   return rows.filter((b) => b.deleted !== true).sort((a, b) => a.madeAt - b.madeAt);
+}
+
+/**
+ * Put a rack on the blaster.
+ *
+ * The queue is the same list whether or not anyone tracks the booth minute to
+ * minute, so this is optional: a shop that marks the rack as going in can, and a
+ * shop that only writes down what came out can skip it. What it buys is the
+ * *In the blaster* list — the thing you look at when somebody asks whether the
+ * machine is free.
+ */
+export async function startBlast(batchId: string, now = Date.now()): Promise<Batch> {
+  assertCan('production.record');
+  return db.transaction('rw', db.batches, db.events, db.meta, async () => {
+    const batch = await db.batches.get(batchId);
+    if (batch === undefined) throw new MoveRefusedError('That rack is not on this device.');
+    const settings = await getSettings();
+    const problem = moveProblem(batch, 'blasting', settings, now);
+    if (problem !== null) throw new MoveRefusedError(problem);
+
+    const onIt: Batch = { ...batch, stage: 'blasting', updatedAt: now };
+    await db.batches.put(onIt);
+    await logEvent('batch.blast', {
+      batchId: batch.id,
+      code: batch.code,
+      qty: batch.qty,
+      trays: batch.trays,
+      fromStage: batch.stage,
+      toStage: 'blasting',
+      detail: `${batch.batchNo} on the blaster — ${formatNumber(batch.trays, 0)} trays in`,
+    });
+    return onIt;
+  });
+}
+
+/**
+ * Take a rack out of the blaster, and write down how much of it went through.
+ *
+ * The floor counts trays, so the blast is counted in trays too. Fewer than the
+ * rack holds splits it in two, and which half keeps the number matters: the trays
+ * that came out of the machine keep the label that went in, and the rest becomes a
+ * new batch with a new number and `parentBatchId` pointing back. A half-blasted
+ * pallet that keeps the old number is a pallet that gets read as blasted next time
+ * somebody walks past it.
+ *
+ * The blasted half goes back to `curing`, not `ready`. Whether it can be sold is
+ * `readyAt`'s answer — on this shop's settings the blast stands in for the rest of
+ * the cure, so the Curing screen will be offering it straight away — and a stage
+ * set here would be a second answer to a question one function already answers.
+ */
+export async function finishBlast(
+  batchId: string,
+  trays: number,
+  now = Date.now(),
+): Promise<{ blasted: Batch; remainder: Batch | null }> {
+  assertCan('production.record');
+  return db.transaction('rw', db.batches, db.events, db.meta, async () => {
+    const batch = await db.batches.get(batchId);
+    if (batch === undefined) throw new MoveRefusedError('That rack is not on this device.');
+    const problem = blastProblem(batch, trays);
+    if (problem !== null) throw new MoveRefusedError(problem);
+
+    const settings = await getSettings();
+    const split = splitBlast(batch, trays);
+    const blasted: Batch = {
+      ...batch,
+      trays: split.blastedTrays,
+      qty: split.blastedQty,
+      blastedQty: split.blastedQty,
+      blastedAt: now,
+      stage: 'curing',
+      updatedAt: now,
+    };
+    await db.batches.put(blasted);
+    await logEvent('batch.blast', {
+      batchId: blasted.id,
+      code: blasted.code,
+      qty: blasted.qty,
+      trays: blasted.trays,
+      fromStage: batch.stage,
+      toStage: 'curing',
+      detail: split.whole
+        ? `${batch.batchNo} through the blaster — all ${formatNumber(blasted.trays, 0)} trays out`
+        : `${batch.batchNo} through the blaster — ${formatNumber(split.blastedTrays, 0)} of ${formatNumber(
+            batch.trays,
+            0,
+          )} trays out`,
+    });
+    if (split.whole) return { blasted, remainder: null };
+
+    // The remainder needs the day's next number, which is a question about every
+    // batch on the device — read inside the transaction so two blasts finishing at
+    // once cannot both claim it.
+    const all = await db.batches.toArray();
+    const pattern = settings.production.batchNumberFormat;
+    const number = formatBatchNo(batch.madeAt, nextBatchSequence(all, batch.madeAt, pattern), pattern);
+    const remainder: Batch = {
+      ...batch,
+      id: uid('b'),
+      batchNo: number,
+      trays: split.remainderTrays,
+      qty: split.remainderQty,
+      blastedQty: 0,
+      blastedAt: null,
+      stage: 'awaiting_shotblast',
+      myobRunDate: null,
+      enteredAt: null,
+      enteredRef: '',
+      parentBatchId: batch.id,
+      rank: 0,
+      updatedAt: now,
+    };
+    await db.batches.put(remainder);
+    await logEvent('batch.split', {
+      batchId: remainder.id,
+      code: remainder.code,
+      qty: remainder.qty,
+      trays: remainder.trays,
+      fromStage: batch.stage,
+      toStage: 'awaiting_shotblast',
+      detail: `${number} — the other ${formatNumber(remainder.trays, 0)} trays off ${batch.batchNo}, still to be blasted`,
+    });
+    return { blasted, remainder };
+  });
+}
+
+/** Everything the blaster is owed, for the screen that works through it. */
+export async function racksAwaitingBlast(): Promise<Batch[]> {
+  return (await db.batches.toArray()).filter(awaitsBlast);
 }
 
 /**

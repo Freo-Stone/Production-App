@@ -168,8 +168,11 @@ export function Card({
   return (
     <section className={cx('card overflow-hidden', className)}>
       {title || actions ? (
-        <header className="flex items-center gap-3 border-b border-line bg-surface2 px-3 py-2">
-          <div className="min-w-0 flex-1">
+        // Wrapped rather than in one unwinding row: a count chip beside the title
+        // is `shrink-0`, so on a phone it used to win the fight and the heading
+        // itself came out as "The…". The chips drop to a second line instead.
+        <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface2 px-3 py-2">
+          <div className="min-w-[10rem] flex-1">
             {title ? <h2 className="truncate text-[0.92rem] font-650">{title}</h2> : null}
             {subtitle ? <p className="truncate text-xs text-ink3">{subtitle}</p> : null}
           </div>
@@ -641,16 +644,21 @@ export function Modal({
             exit={{ y: 16, opacity: 0, transition: { duration: 0.12 } }}
             transition={{ type: 'spring', stiffness: 420, damping: 34 }}
           >
-            <header className="flex items-center gap-3 border-b border-line bg-surface2 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate text-[0.95rem] font-650">{title}</h2>
-                {subtitle ? <p className="truncate text-xs text-ink3">{subtitle}</p> : null}
+            <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface2 px-3 py-2">
+              <div className="min-w-[10rem] flex-1">
+                {/* Not truncated: a dialog title is the question being asked, and
+                    "How much of 2026-09-18-01 came…" on a phone stops being a
+                    question. Two lines of heading cost nothing; a clipped one does. */}
+                <h2 className="text-[0.95rem] font-650">{title}</h2>
+                {subtitle ? <p className="text-xs text-ink3">{subtitle}</p> : null}
               </div>
               <IconButton icon="close" label="Close" onClick={onClose} />
             </header>
             <div className={cx('min-h-0 flex-1 overflow-auto', bare ? '' : 'p-3')}>{children}</div>
             {footer ? (
-              <footer className="flex items-center justify-end gap-2 border-t border-line bg-surface2 px-3 py-2">
+              // The safe area is the phone's home strip. The tab bar reserves it;
+              // a sheet that ends at the viewport edge puts its buttons under it.
+              <footer className="flex items-center justify-end gap-2 border-t border-line bg-surface2 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
                 {footer}
               </footer>
             ) : null}

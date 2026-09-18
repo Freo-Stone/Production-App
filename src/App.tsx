@@ -6,6 +6,7 @@ import { Matrix } from '@/screens/Matrix';
 import { People } from '@/screens/People';
 import { Products } from '@/screens/Products';
 import { Settings } from '@/screens/Settings';
+import { Shotblast } from '@/screens/Shotblast';
 import { SignIn } from '@/screens/SignIn';
 import { Sources } from '@/screens/Sources';
 import { navigate, useRoute } from '@/app/router';
@@ -61,14 +62,7 @@ function screenFor(path: string) {
     case 'curing':
       return <Curing />;
     case 'shotblast':
-      return (
-        <UnderConstruction
-          title="Shotblast"
-          icon="blast"
-          blurb="Awaiting blast, on the blaster, blasted."
-          steps={['Partial blasts split a batch', 'Blasting completes the product for MYOB entry']}
-        />
-      );
+      return <Shotblast />;
     case 'myob':
       return (
         <UnderConstruction

@@ -200,6 +200,27 @@ export function cureSummary(
 }
 
 /**
+ * What stops anything at all happening to a rack, whatever the next move is.
+ *
+ * Three states end a rack's life on the floor — taken back, written off, keyed
+ * into MYOB — and every screen that offers a button on a rack has to say the same
+ * thing about them. The Curing screen and the blaster's queue both ask, so the
+ * answer lives here once; `what` is the verb the row was offering, because a
+ * person reading "nothing to blast" on the blaster's screen should not have to
+ * translate from a sentence written for a different button.
+ */
+export function rackIsClosed(batch: Batch, what: 'move' | 'blast'): string | null {
+  if (batch.deleted === true) return `That rack has been taken back, so there is nothing to ${what}.`;
+  if (batch.stage === 'written_off') {
+    return `${batch.batchNo} was written off. If it turned up after all, log it as a new make — the write-off stays in the ledger either way.`;
+  }
+  if (batch.enteredAt !== null) {
+    return `${batch.batchNo} is keyed into MYOB. Correct it there, or write it off — moving it here would leave the two records disagreeing.`;
+  }
+  return null;
+}
+
+/**
  * Why a rack cannot be moved to a given stage, in a sentence, or null when it
  * can.
  *
@@ -215,13 +236,8 @@ export function moveProblem(
   now = Date.now(),
 ): string | null {
   const label = STAGE_LABELS[to];
-  if (batch.deleted === true) return 'That rack has been taken back, so there is nothing to move.';
-  if (batch.stage === 'written_off') {
-    return `${batch.batchNo} was written off. If it turned up after all, log it as a new make — the write-off stays in the ledger either way.`;
-  }
-  if (batch.enteredAt !== null) {
-    return `${batch.batchNo} is keyed into MYOB. Correct it there, or write it off — moving it here would leave the two records disagreeing.`;
-  }
+  const closed = rackIsClosed(batch, 'move');
+  if (closed !== null) return closed;
   if (batch.stage === to) return `It is already marked ${label.toLowerCase()}.`;
   if (to === 'entered_myob') {
     return 'A rack goes into MYOB from the MYOB entry queue, where it joins the week’s run.';

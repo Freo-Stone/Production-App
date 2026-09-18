@@ -21,7 +21,7 @@ writes it off, or it is keyed into MYOB. In stage terms: `green`, `curing`,
 `awaiting_shotblast` and `blasting`. A rack that has been taken back on Daily
 entry is not here — it never became a rack.
 
-Racks are only ever read here and on the Shotblast screen; nothing on this screen
+Racks are only ever read here and on the [Shotblast screen](shotblast.md); nothing on this screen
 changes how long a rack takes. The cure clock was fixed when the make was logged
 (`cureDaysSnapshot`, `routeSnapshot`), so changing a product's cure days in
 Products cannot re-age a rack that is already sitting on the floor.
