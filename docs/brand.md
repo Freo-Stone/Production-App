@@ -71,8 +71,8 @@ Not everything is brand, deliberately:
 | File | What it is | Where it is used |
 | --- | --- | --- |
 | `src/assets/logo.png` | the logo itself, cleaned: the four palette colours only, the white card made transparent so the lettering inside it survives | the screen before you sign in, at 64px |
-| `src/assets/logo-mark.svg` | the block device with no lettering: eight rectangles in a 64-unit box | the header tile, at 28px |
-| `public/favicon.svg` | the same eight rectangles, byte for byte | the browser tab |
+| `src/assets/logo-mark.svg` | the block device with no lettering — eight rectangles in a 64-unit box — on the logo's own white card | the header tile, at 28px |
+| `public/favicon.svg` | the same card and the same eight rectangles, byte for byte | the browser tab |
 | `public/icon-192.png`, `icon-512.png` | the logo's white card with the device inside it | an installed app |
 | `public/maskable-192.png`, `maskable-512.png` | the same, with the device at 56% of the canvas | launchers that crop |
 | `public/apple-touch-icon.png` | 180px, no rounding, because iOS rounds it | "Add to Home Screen" |
@@ -81,9 +81,17 @@ The mark carries no lettering because lettering at 28px is mush; the shapes are 
 carry the shop at that size. Where there is room to be read — the first screen on a
 device that has never opened the app — the real logo is used.
 
-Both icon kinds are the logo's **white card** with the blocks inside it, rather than
-the blocks bleeding to the edge. Two reasons: it is what the logo looks like, and it
-means no launcher and no corner rounding can cut a block in half. The maskable pair
+Everything that is small wears the logo's **white card** with the blocks inside it,
+rather than the blocks bleeding to the edge: the two icon sizes, the header tile and
+the tab icon. Two reasons it is the card and not the bare blocks: it is what the logo
+looks like, and it means no launcher and no corner rounding can cut a block in half.
+
+There is a third reason for the two on screen, and it was found by looking at the app
+rather than at a design file. The mark used to be the blocks alone, on the assumption
+that the background would do the rest. On the app's dark chrome the charcoal foot
+disappeared into the background and the only things left legible were four red corner
+blocks floating around a blue slab — which reads as a broken image, not a logo. The
+card is part of the artwork on dark surfaces, not decoration. The maskable pair
 puts the device at 56% of the canvas for the same reason — a square device's corner
 sits 0.707 times its own width from the centre, so at 56% of the canvas that corner
 lands at 0.40 of the side, which is exactly the edge of the safe circle. At the 62%

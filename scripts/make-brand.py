@@ -25,9 +25,15 @@ Three pieces, for three jobs:
   colour test — because the letters are white too and a colour test would leave holes
   in the word FREO.
 * `src/assets/logo-mark.svg` / `public/favicon.svg` — the block device without the
-  lettering: red corner blocks, blue bars, charcoal foot. Lettering is mush at 16px
-  and 28px, which is where these are used, so the shapes carry the brand there. Both
-  are the same eight rectangles, from one list (`PARTS` below).
+  lettering: red corner blocks, blue bars, charcoal foot, sitting on the logo's own
+  white card. Lettering is mush at 16px and 28px, which is where these are used, so
+  the shapes carry the brand there. Both files are the same card plus the same eight
+  rectangles from one list (`PARTS` below), with the device at `CARD_FILL` of the
+  canvas and the same `CORNER` rounding the icon PNGs get — so the tile in the app's
+  header and the icon on a home screen are one drawing, not two that nearly agree.
+  The card matters as much on screen as on a launcher: this mark sits on the app's
+  dark chrome, where a charcoal foot on a dark background vanishes and leaves four
+  red corners floating around a blue slab.
 * The icon PNGs — rendered from those same parts, as the logo's own white card with
   the device inside it. That is what the logo looks like, and it means no launcher and
   no corner rounding can cut a block in half. Sizes are not decoration either: iOS
@@ -194,16 +200,33 @@ def rect(part, scale=UNIT, dx=0.0, dy=0.0):
 
 
 def svg(purpose: str) -> str:
-    """The device as vectors, in the same 64-unit space the PNGs are drawn in."""
+    """
+    The device as vectors, on the logo's own white card, in the same 64-unit space the
+    PNGs are drawn in — the same card, the same fill and the same rounding as
+    `render_icon`, so the tile in the app header and the icon on a home screen are the
+    same drawing rather than two that nearly agree.
+
+    The card is not decoration. This mark sits on the app's dark chrome and on a
+    browser's dark tab strip, where the charcoal foot disappears into the background
+    and leaves four red corners floating around a blue slab — which is exactly how the
+    header tile came to read as a broken image instead of a logo.
+    """
+    scale = (CARD_FILL * 64) / ART
+    offset = (64 - ART * scale) / 2
+    card = (
+        f'  <rect x="0.00" y="0.00" width="64.00" height="64.00" rx="{CORNER}" '
+        f'fill="#{WHITE[0]:02X}{WHITE[1]:02X}{WHITE[2]:02X}" />'
+    )
     shapes = "\n".join(
         f'  <rect x="{left:.2f}" y="{top:.2f}" width="{right - left:.2f}" height="{bottom - top:.2f}" '
         f'fill="#{c[0]:02X}{c[1]:02X}{c[2]:02X}" />'
-        for (left, top, right, bottom), c in (rect(p) for p in PARTS)
+        for (left, top, right, bottom), c in (rect(p, scale, offset, offset) for p in PARTS)
     )
     note = (
-        f"  <!-- {purpose} Blue bars with red corners on a charcoal foot, measured from\n"
-        "       brand/freo-stone-paving.jpg by scripts/make-brand.py. No lettering: it turns\n"
-        "       to mush at the 16px a browser tab offers, which is where these are used. -->"
+        f"  <!-- {purpose} The device — blue bars, red corner blocks, charcoal foot — on\n"
+        "       the logo's own white card, measured from brand/freo-stone-paving.jpg by\n"
+        "       scripts/make-brand.py. No lettering: it turns to mush at the 16px a browser\n"
+        "       tab offers, and at the 28px the app header has. -->"
     )
     # width/height on the root, not just a viewBox: a small SVG is inlined into the
     # bundle as a data URI by the bundler, and one without intrinsic size reports no
@@ -211,7 +234,7 @@ def svg(purpose: str) -> str:
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" '
         'role="img" aria-label="Freo Stone Paving">\n'
-        f"{note}\n{shapes}\n</svg>\n"
+        f"{note}\n{card}\n{shapes}\n</svg>\n"
     )
 
 

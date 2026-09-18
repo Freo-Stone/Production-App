@@ -204,6 +204,22 @@ describe('the brand artwork is the logo, not a drawing of it', () => {
     }
   });
 
+  it('gives the mark its own card, so it reads as a logo on dark chrome', () => {
+    // The mark sits on the app's dark chrome and on a browser's dark tab strip.
+    // Drawn as bare blocks its charcoal foot sank into the background, and the only
+    // parts left legible were four red corners around a blue slab — which is what a
+    // shop owner points at and calls a broken logo. The card is part of the artwork.
+    const white = (logoPalette().white ?? '').toUpperCase();
+    for (const file of ['src/assets/logo-mark.svg', 'public/favicon.svg']) {
+      const svg = readFileSync(`${root}/${file}`, 'utf8');
+      const card = [...svg.matchAll(/<rect[^>]*>/g)][0]?.[0] ?? '';
+      expect(card, `${file} opens with a card`).toContain('width="64.00"');
+      expect(card, `${file} covers the whole canvas`).toContain('height="64.00"');
+      expect(card, `${file} is the logo's white`).toContain(`fill="${white}"`);
+      expect(card, `${file} is rounded like the launcher icons`).toMatch(/rx="\d+"/);
+    }
+  });
+
   it('makes the header tile and the tab icon the same drawing', () => {
     const rects = (s: string): string => [...s.matchAll(/<rect[^>]*>/g)].map((m) => m[0]).join('\n');
     expect(rects(readFileSync(`${root}/src/assets/logo-mark.svg`, 'utf8'))).toBe(

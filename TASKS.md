@@ -505,6 +505,25 @@ screens** sheet are text.
 - Everywhere else keeps its pictures — the header buttons, the toast, the table's
   sort and column marks. This was about the menu, not the icon set.
 
+## The header logo was reading as a broken image · fixed
+
+*"the logo is not displaying properly"* — and it wasn't. The tile in the header is
+the block device cut out of the logo: blue bars, red corner blocks, charcoal foot.
+Cut out, it was — on the app's dark chrome the charcoal foot sank into the
+background and the only parts left legible were four red corners floating around a
+blue slab. On screen that is a broken-image box, not a shop's logo.
+
+- `scripts/make-brand.py` now draws the mark on the logo's **own white card**: the
+  same card, the same `CARD_FILL` and the same `CORNER` rounding the launcher icons
+  get. `src/assets/logo-mark.svg` and `public/favicon.svg` are regenerated, so the
+  header tile, the browser tab and the icon on a home screen are one drawing.
+- `pnpm run brand` regenerates them from `brand/freo-stone-paving.jpg`; the vectors
+  need nothing but `PARTS`, so they can be redrawn without touching the PNGs.
+- Pinned by `gives the mark its own card, so it reads as a logo on dark chrome` in
+  `test/brand.test.ts`: both SVGs open with a full-canvas rounded rect in the logo's
+  white. The tab icon and the header tile are still checked byte for byte against
+  each other, and every fill in them against the palette measured out of the logo.
+
 ## M12 — The sync loop · planned, not built
 
 `src/data/syncEngine.ts` is finished and tested — pull, merge, protect local

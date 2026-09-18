@@ -11,9 +11,14 @@ import { cx } from '@/ui/primitives';
  * icon on a phone's home screen and the logo on the sign-in screen are the same
  * artwork at three sizes, rather than three drawings that nearly agree.
  *
- * The tile is the block device on its own — blue bars, red corner blocks, charcoal
- * foot — with no lettering, because lettering at 28px is mush and the shapes are
- * what carry the brand at that size. Where there is room to be read, use
+ * The tile is the block device on the logo's own white card — the same card, the same
+ * fill and the same rounding the launcher icons get, so the header tile and the icon
+ * on a home screen are one drawing. No lettering: at 28px it is mush, and the shapes
+ * are what carry the shop at that size.
+ *
+ * The card is not decoration. This sits on the app's dark chrome, where a charcoal
+ * foot on a dark background sinks away and leaves four red corners floating around a
+ * blue slab — which reads as a broken image. Where there is room to be read, use
  * `BrandLogo`, which is the real thing.
  */
 export function Brand({ compact = false }: { compact?: boolean }): React.ReactElement {
