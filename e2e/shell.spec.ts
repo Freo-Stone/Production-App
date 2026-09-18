@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { FILES, openApp, openImportPanel, signIn } from './support';
+import { FILES, loadAllStaged, openApp, openImportPanel, signIn, waitForStockTable } from './support';
 
 test.describe('shell', () => {
   // These are wide-screen assertions: below the layout breakpoint the rail is
@@ -100,8 +100,11 @@ test.describe('phone layout', () => {
     await openApp(page, '/sources');
     await openImportPanel(page);
     await page.locator('input[type="file"]').setInputFiles([FILES.stock]);
-    await page.getByRole('button', { name: 'Load' }).first().click();
-    await expect(page.locator('[role="row"]').first()).toBeVisible();
+    // Through the app's own path, with the shared wait: the parse runs in the page
+    // and this suite runs two workers, so "the rows are here" needs the same
+    // patience everywhere or it fails where the machine is busiest.
+    await loadAllStaged(page);
+    await waitForStockTable(page);
 
     // Only the grid itself may scroll sideways, never the document. Polled because
     // the screen re-measures itself after the rows arrive, and named on failure:

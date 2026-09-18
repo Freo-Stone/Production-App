@@ -111,8 +111,8 @@ report's own "as at" timestamp should match the commit message within the export
 cadence. If GitHub is ahead of MYOB's folder, the flow is pointing at the wrong
 path — and the commit would have been skipped, so look at step 4's output.
 
-**In the app.** Sources → import the file → the line along the top shows the row
-count and says how long ago it came in,
+**In the app.** Sources → import the file → the tab over the table says how many
+rows landed and the chip in the header says how old the data is,
 and the counts should match the sheet. `test/fixtures/verifiedNumbers.json`
 records the counts the shop's own exports produced when the parsers were written
 up — a few thousand stock rows spread over the MYOB location codes, and a few

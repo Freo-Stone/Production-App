@@ -30,8 +30,6 @@ import {
   Card,
   Chip,
   EmptyState,
-  Fact,
-  FactBar,
   Field,
   NumberInput,
   Select,
@@ -207,21 +205,10 @@ export function Products() {
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
-      {/* One line of counts, not four boxes. The board underneath is where the
-          work happens and it should end at the bottom of the window, not halfway
-          down it. */}
-      <FactBar>
-        <Fact label="Codes known" value={formatNumber(counts.total, 0)} sub="from both MYOB exports" />
-        <Fact label="Current range" value={formatNumber(counts.current, 0)} sub="planned in the matrix" tone={counts.current === 0 ? 'short' : 'curing'} />
-        <Fact
-          label="Needs setting"
-          value={formatNumber(counts.needs, 0)}
-          sub="route, unit or yield"
-          tone={counts.needs > 0 ? 'short' : 'ink'}
-        />
-        <Fact label="Current, no demand" value={formatNumber(counts.idle, 0)} sub="no open job lines" />
-      </FactBar>
-
+      {/* No counts above the board. The filter says what you are looking at and
+          the line under the table says how many of them are on screen; a row of
+          numbers nobody asked for was the first thing on the screen for no reason.
+          `counts` still drives the empty states and that footer. */}
       <Card
         padded={false}
         title="Products"

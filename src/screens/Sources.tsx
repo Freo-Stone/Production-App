@@ -5,7 +5,6 @@ import { useFillBelow } from '@/app/useFillBelow';
 import { useMediaQuery } from '@/app/useMediaQuery';
 import { useView } from '@/app/useView';
 import { formatNumber } from '@/core/format';
-import { formatSince } from '@/core/dates';
 import { defaultView } from '@/core/defaults';
 import type { JobRow, StockRow } from '@/core/types';
 import { getSettings, latestJobsSnapshot, latestStockSnapshot, saveSettings } from '@/data/db';
@@ -22,8 +21,6 @@ import {
   Chip,
   Disclosure,
   EmptyState,
-  Fact,
-  FactBar,
   Field,
   Segmented,
   Select,
@@ -178,11 +175,6 @@ export function Sources() {
     return rows;
   }, [stock, location, search]);
 
-  const placeholderCount = useMemo(() => {
-    const years = settings?.planning.placeholderYears ?? [2040];
-    return (jobs?.rows ?? []).filter((j) => years.includes(new Date(j.promisedDate).getFullYear())).length;
-  }, [jobs, settings]);
-
   const jobRows = useMemo(() => {
     let rows = jobs?.rows ?? [];
     if (!showPlaceholders) {
@@ -265,30 +257,17 @@ export function Sources() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* ── What is in, how current, and how it got here ───────────────────── */}
-      <FactBar stacked>
-        <span className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1">
-          <Fact
-            label="Stock"
-            value={stock ? `${formatNumber(stock.rows.length, 0)} rows` : 'none yet'}
-            sub={stock ? formatSince(stock.capturedAt) : 'nothing imported yet'}
-            tone={stock ? 'curing' : 'short'}
-          />
-          <Fact
-            label="Future jobs"
-            value={jobs ? `${formatNumber(jobs.rows.length, 0)} lines` : 'none yet'}
-            sub={jobs ? formatSince(jobs.capturedAt) : 'nothing imported yet'}
-            tone={jobs ? 'curing' : 'short'}
-          />
-          <Fact
-            label="Placeholders"
-            value={formatNumber(placeholderCount, 0)}
-            sub="dated years ahead, hidden from the matrix"
-            tone={placeholderCount > 0 ? 'warn' : 'ink'}
-          />
-        </span>
-        {settings && exportStates ? <AutoImportBar settings={settings} states={exportStates} canWrite={canImport} /> : null}
-      </FactBar>
+      {/* ── How the data gets here ─────────────────────────────────────────── */}
+      {/* Counts used to sit here in tiles, then in a line of facts. They were the
+          first thing on the screen and nobody read them: the tab over a mirror says
+          how many rows landed, the chip in the header says how old the data is, and
+          the locations line says how many groups are counted. What stays here is the
+          one line with a decision in it. */}
+      {settings && exportStates ? (
+        <div className="flex justify-end">
+          <AutoImportBar settings={settings} states={exportStates} canWrite={canImport} />
+        </div>
+      ) : null}
 
       {/* ── Import ─────────────────────────────────────────────────────────── */}
       <Disclosure

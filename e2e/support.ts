@@ -76,15 +76,21 @@ export async function loadAllStaged(page: Page): Promise<void> {
     await loads.first().click();
     // One tray row per Load: a staged file that comes back is a real bug, so the
     // count is asserted after every click rather than at the end.
-    await expect(loads).toHaveCount(count - 1);
+    // Generous timeout: the workbook is parsed on the page's own thread, and a
+    // couple of thousand rows while another worker is doing the same is not instant.
+    await expect(loads).toHaveCount(count - 1, { timeout: 30_000 });
   }
   await expect(loads).toHaveCount(0);
 }
 
 /** Wait until the stock mirror is on screen, so the layout has finished moving. */
 export async function waitForStockTable(page: Page): Promise<void> {
-  await expect(page.getByRole('button', { name: /^Stock \(/ })).toBeVisible();
-  await expect(page.locator('[role="row"]').first()).toBeVisible();
+  // The parse happens in the page, and these specs load the shop's real export
+  // shapes: with two workers running, a few thousand rows can take the better part
+  // of fifteen seconds. Waiting is not tolerating a failure — the assertion still
+  // fails if the rows never arrive.
+  await expect(page.getByRole('button', { name: /^Stock \(/ }), { timeout: 30_000 }).toBeVisible();
+  await expect(page.locator('[role="row"]').first(), { timeout: 30_000 }).toBeVisible();
 }
 
 /**

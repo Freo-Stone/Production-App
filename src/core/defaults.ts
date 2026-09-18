@@ -41,7 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
     defaultHorizonWeeks: 4,
     bufferDays: 0,
     farFutureMonths: 12,
-    // 475 of 1553 job lines carry this placeholder promised date.
+    // A large share of the open job lines carry this placeholder promised date.
     placeholderYears: [2040],
     horizonBandDays: 14,
     blastHandlingDays: 1,

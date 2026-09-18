@@ -83,7 +83,7 @@ file produce the same rows, and a merge of identical content changes nothing.
 
 ## Switching it off, and pointing it somewhere else
 
-The line along the top of **Data sources** holds the switch and the interval;
+The line at the top right of **Data sources** holds the switch and the interval;
 **Details** opens the two paths and each file's fuller line.
 Off means what it says: the manual drop tray on the same screen is the only way
 in, and the subtitle says so rather than leaving it to be guessed.

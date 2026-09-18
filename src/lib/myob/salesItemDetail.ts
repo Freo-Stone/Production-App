@@ -24,8 +24,8 @@ import {
  *
  * So the item code has to be carried DOWN onto every line until the next item
  * header, and subtotals must be excluded — they are per-item rollups, not demand.
- * Verified against the real export: 128 item headers, 1,553 job lines, 128
- * subtotals, nothing left unclassified.
+ * Verified against the shop's own export: every item header became a group of job
+ * lines, the subtotals were left out, and the line count matched the sheet's own.
  *
  * Note the file named `future.xlsx` is this report while `location.xlsx` is the
  * stock list — the names are the opposite way round, so detection is done from

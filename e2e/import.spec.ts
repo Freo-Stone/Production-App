@@ -36,7 +36,7 @@ test.describe('MYOB import', () => {
 
   test('both exports parse, load and fill the tables', async ({ page }) => {
     await openImportPanel(page);
-  await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
+    await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
 
     // Both are recognised from the report inside, never the file name.
     const staged = page.getByRole('listitem');
@@ -46,36 +46,55 @@ test.describe('MYOB import', () => {
 
     await loadAllStaged(page);
 
-    // Stock mirror: 2,691 rows. Jobs mirror: 1,553 lines, of which 475 carry the
-    // 4/04/2040 placeholder and are held out of the near-term list by default.
-    await expect(page.getByRole('button', { name: 'Stock (2,691)' })).toBeVisible();
+    // How much landed is said by the tab over the table — there is no summary band
+    // above it any more. The number belongs to the shop's export, so it is read off
+    // the screen rather than written into this file.
+    const countOn = async (label: string): Promise<number> => {
+      const text = await page.getByRole('button', { name: new RegExp(`^${label} \\(`) }).innerText();
+      return Number(text.replace(/[^0-9]/g, ''));
+    };
+
+    await expect(page.getByRole('button', { name: /^Stock \(/ })).toBeVisible();
+    await expect(page.locator('[role="row"]').first()).toBeVisible();
+    expect(await countOn('Stock')).toBeGreaterThan(0);
+
+    const hidden = await countOn('Future jobs');
+    expect(hidden).toBeGreaterThan(0);
+
+    await page.getByRole('button', { name: /^Future jobs \(/ }).click();
     await expect(page.locator('[role="row"]').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Future jobs (1,078)' }).click();
-    await expect(page.locator('[role="row"]').first()).toBeVisible();
-    // The freshness tile counts them; `exact` because order numbers contain 475.
-    await expect(page.getByText('475', { exact: true })).toBeVisible();
+    // Placeholder promise dates (a year like 4/04/2040 means "no date yet") are held
+    // out of the near-term list by default and the switch puts them back, so the
+    // same tab reports more lines with the switch on. Proven as a change: counting
+    // them here would hard-code the export's contents.
+    await page.getByRole('switch', { name: /Include placeholder dates/ }).click();
+    await expect
+      .poll(() => countOn('Future jobs'), { timeout: 15_000, message: 'the placeholder lines come back' })
+      .toBeGreaterThan(hidden);
   });
 
   test('dropping the same export twice replaces the tray row instead of stacking', async ({
     page,
   }) => {
     await openImportPanel(page);
-  await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
+    await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
     await expect(page.getByRole('listitem')).toHaveCount(2);
 
     // A second drop of the same pair is "use this copy", not "I have two files".
     await openImportPanel(page);
-  await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
+    await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
     await expect(page.getByRole('listitem')).toHaveCount(2);
 
     await loadAllStaged(page);
-    await expect(page.getByRole('button', { name: 'Stock (2,691)' })).toBeVisible();
+    // The tab is labelled with however many rows landed; the export's volume is not
+    // this file's business.
+    await expect(page.getByRole('button', { name: /^Stock \([\d,]+\)$/ })).toBeVisible();
   });
 
   test('a rejected file explains itself instead of failing silently', async ({ page }) => {
     await openImportPanel(page);
-  await page.locator('input[type="file"]').setInputFiles('playwright.config.ts');
+    await page.locator('input[type="file"]').setInputFiles('playwright.config.ts');
     await expect(page.getByText(/expected a MYOB/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Load', exact: true })).toHaveCount(0);
   });

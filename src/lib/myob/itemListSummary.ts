@@ -23,8 +23,9 @@ import {
  *   row 16  B=`A3`     C=165.01 D=`PAVERS`
  *
  * A group header is recognised as "text in the quantity column"; a subtotal is
- * "blank item with a numeric quantity". Verified on the real export: 2,691 stock
- * rows, 23 locations, 23 subtotals, nothing left unclassified.
+ * "blank item with a numeric quantity". Verified on the shop's own export: every
+ * row of the sheet came out as a stock line, a location group or a subtotal —
+ * nothing left unclassified, and the totals matched the sheet's own figures.
  *
  * `qtyOnHandRaw` is stored exactly as exported. The phantom `+10000` baseline is
  * a per-product decision and is applied in core/calc, never here — auto-detecting

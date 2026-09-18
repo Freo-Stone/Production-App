@@ -235,8 +235,8 @@ export function isLate(
 
 /**
  * True for rows that must not drive near-term planning: the placeholder year
- * seen in the export (`4/04/2040` on 475 of 1553 lines) and anything beyond the
- * configured far-future window.
+ * seen in the export (`4/04/2040`, on a large share of the open lines) and
+ * anything beyond the configured far-future window.
  */
 export function isFarFuture(
   promisedDate: number,

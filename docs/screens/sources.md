@@ -14,16 +14,34 @@ read what was actually imported.
 
 | Block | What it is |
 | --- | --- |
-| The line along the top | rows in the stock mirror, lines in the job mirror, and how many lines carry a placeholder date — and on the right, the automatic-import line: the switch, the interval, and what each of the two files last did. `docs/exports.md` |
+| The import line, at the top right | the automatic-import switch, the interval, what each of the two files last did, and **Details** for the paths in the repository. `docs/exports.md` |
 | Import by hand | one line, closed. Open it and the tray is there: drop the workbooks, see which report each one is, load them |
 | Locations counted as stock | one line, closed, saying how many of the groups are counted. Open it for the chips |
-| The mirrors | one card, two tabs — the stock rows and the job lines exactly as exported — with everything the blocks above did not use |
+| The mirrors | one card, two tabs — the stock rows and the job lines exactly as exported — with everything above it that is not the table |
 
 Two of those are `Disclosure`s (`src/ui/primitives.tsx`): a line, a caret, and
 content that is not in the screen at all until asked for. They were full-height
 cards, and the table anyone came for started below the fold.
 
+**There are no counts above the table.** There were four tiles — rows in the stock
+mirror, lines in the job mirror, the location groups, how many lines carry a
+placeholder date — they became one line of facts, and the answer was still *"remove
+this from all pages, i do not need to see this."* Fair enough, because every one of
+those numbers is already where it is looked at: the tab labels say `Stock (n)`, the
+chip in the header says how old the data is, and the count of groups on the line
+that holds them says `n of m counted`. Nothing is lost that anyone was reading, so
+the band is gone and the table has the room.
+
+The rule for the whole screen follows from it: a number appears where it is used,
+not in a summary above the thing it describes.
+
 ## Room
+
+Measured in the browser with both mirrors loaded and the panels closed: the grid
+runs **342→704** of a 1280×720 window and **408→747** of a 390×839 phone, the page
+behind it has 1px and 0px left to scroll respectively, and the card that holds it
+starts a quarter of the way down either screen. `e2e/layout.spec.ts` holds that
+quarter.
 
 The table's box is measured, not guessed. `useFillBelow` takes the distance from
 where the box starts to the bottom of the window, less the phone's bottom bar and
@@ -46,9 +64,9 @@ the toast card is click-through and only its own two buttons answer the pointer.
 
 ## Automatic import
 
-The shop's decisions and the facts on one line: the switch, the interval, and per
-file whether it is up to date, how long ago it came in, or what went wrong. *Check
-now* re-reads both files without waiting for the interval.
+One line, on the right: the switch, the interval, and per file whether it is up to
+date, how long ago it came in, or what went wrong. *Check now* re-reads both files
+without waiting for the interval.
 
 **Details** opens the rest: the two paths in the repository — so the mirror can be
 pointed at wherever Power Automate actually writes — each file's fuller line with

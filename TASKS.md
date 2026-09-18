@@ -337,11 +337,12 @@ prop's own documentation always claimed it did.
 
 **Everything above the table was too tall.** Four tiles, a framed automatic-import
 card, a full drop zone and a wall of 23 location chips put the first row at 684px
-of a 720px window. Now:
+of a 720px window. Now — and the counts themselves went next, on the same
+complaint one round later, see below:
 
-- one bordered line along the top carries the counts and the automatic-import
-  answer — the switch, the interval, and per file what it did and how long ago —
-  with the paths, the interval control and the fuller lines under **Details**;
+- the automatic-import answer is one line at the top right — the switch, the
+  interval, and per file what it did and how long ago — with the paths, the interval
+  control and the fuller lines under **Details**;
 - *Import by hand* and *Locations counted as stock* are `Disclosure` lines, closed
   by default (a `DataTable`-sized screen should not spend 200px on a tray nobody
   is using), and choosing files opens the tray by itself so *Load* is never hidden;
@@ -357,11 +358,10 @@ of a 720px window. Now:
   which the table now occupies: a toast covering a column's resize handle read as a
   broken table. The card is click-through; its own two buttons are not.
 
-Measured in the browser, both mirrors loaded: at 1280×720 the line along the top is
-63px and the stock table runs 378→704, with 1px of page scroll left in the whole
-screen; on a phone (390×839) the same line wraps to 164px, the table takes its
-240px floor at 517→757, and the document has nothing left to scroll at all. Before,
-the first row started at 684px of that 720px window.
+Measured in the browser, both mirrors loaded, panels closed: at 1280×720 the stock
+table runs 378→704 with 1px of page scroll left in the whole screen; on a phone
+(390×839) the table takes its 240px floor at 517→757 and the document has nothing
+left to scroll at all. Before, the first row started at 684px of that 720px window.
 
 Proven by `e2e/layout.spec.ts` (fill, no page scroll, the last row reachable
 inside the table by scroll and by wheel, and a closed panel keeping its content out
@@ -371,6 +371,35 @@ person now does first — open the tray, open the locations line — and one, *c
 a header sorts the table*, had been reading the row immediately after a click and
 capturing the order from the click before; it waits for the arrow to move now, the
 same round-trip rule that caught the interval assertion in M11.
+
+## The numbers went too · removed from every page
+
+One round later, from the new screen: *"remove this from all pages, i do not need to
+see this"*, the red circle round the strip of counts. So the counts are gone from
+**Data sources** (rows, lines, location groups, placeholder dates) and from
+**Products** (codes known, current range, needs setting, current with no demand),
+and the `FactBar`/`Fact` primitives they needed went with them rather than staying
+as something nothing uses.
+
+Nothing that was read is lost, which is the only reason removing it was safe: the
+tab over a mirror says `Stock (n)`, the chip in the header says how old the data
+is, the locations line says `n of m counted`, and Products says how many rows are
+on screen out of how many are known in the line under the table. What a number is
+for, it sits beside — not in a summary above the thing it describes. **Settings**
+keeps its four tiles (device, repository, token, last pull/push), because those
+report the state of *this device* and there is nowhere else to read them; said so
+rather than assumed, in case that is next.
+
+The table moved up again: 342→704 of a 720px window on Data sources, 249→664 on
+Products, and 408→747 of a 390×839 phone. `e2e/layout.spec.ts` now demands the
+card starts in the top third of the window on any device, so chrome cannot creep
+back above it unnoticed. `test/ui.products.test.tsx` no longer asserts a count
+that no longer exists, and `e2e/import.spec.ts` reads the counts off the tabs and
+proves the placeholder switch by the *change* it makes — the shop's export volumes
+are not this file's business, and they had no business being in a public
+repository either.
+
+
 
 ## M12 — The sync loop · planned, not built
 
@@ -399,7 +428,7 @@ Decisions taken before writing code, so they are not made twice under pressure:
    statement is that the last metre of trust is the private repository's token,
    which is already written in `docs/accounts.md`.
 3. **Mirrors stay local.** The stock and job mirrors are not in the shared
-   document: every device imports the exports for itself, so pushing 2,691 rows
+   document: every device imports the exports for itself, so pushing a few thousand rows
    of somebody else's MYOB report through a text file on GitHub would be pure
    cost. Product *identity* rows created by an import are shared, and marked.
 4. **The token never travels**, and a public repository is refused on write. Both

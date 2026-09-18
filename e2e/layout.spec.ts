@@ -72,10 +72,11 @@ test.describe('the table gets the screen', () => {
       .toBe('ok');
 
     // The furniture above is not allowed to grow back: where the table's card
-    // starts is the measure of that. A phone spends more of its height on the
-    // same facts because they wrap, so it is allowed proportionally more.
+    // starts is the measure of that. Measured today the card begins at a quarter of
+    // the window on a desktop and a quarter on a phone, so anything that reappears
+    // above it and pushes the table down again fails here.
     const b = await box(page);
-    expect(b.cardTop).toBeLessThanOrEqual(Math.round(b.innerHeight * (width < 640 ? 0.62 : 0.45)));
+    expect(b.cardTop).toBeLessThanOrEqual(Math.round(b.innerHeight * 0.32));
   });
 
   test('the last row is one scroll inside the table, not three page scrolls away', async ({ page }) => {

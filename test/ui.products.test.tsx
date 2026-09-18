@@ -107,8 +107,9 @@ describe('Products screen', () => {
     expect(saved?.enabled).toBe(true);
     const events = await db.events.toArray();
     expect(events.some((e) => e.action === 'product.update' && e.code === 'S3')).toBe(true);
-    // The tile counts the change without a reload.
-    expect(h.host.textContent).toContain('Current range');
+    // And the row says it on the spot. There is no line of counts above the board
+    // to keep in step with the table — the table is the count.
+    expect(cellInput(h.host, 'S3', 'enabled').getAttribute('aria-checked')).toBe('true');
     h.unmount();
   });
 
