@@ -25,8 +25,12 @@ test.describe('shell', () => {
   test('a collapsed rail still reaches every screen', async ({ page }) => {
     await openApp(page);
     await page.getByRole('button', { name: 'Collapse menu' }).click();
-    await expect(page.getByRole('button', { name: 'Data sources' })).toBeVisible();
-    await page.getByRole('button', { name: 'Data sources' }).click();
+    // Asked of the rail, not of the page: the board behind it offers a
+    // "Go to Data sources" button of its own when there is nothing imported yet,
+    // and this test is about whether the collapsed rail can be reached.
+    const rail = page.getByRole('navigation');
+    await expect(rail.getByRole('button', { name: 'Data sources' })).toBeVisible();
+    await rail.getByRole('button', { name: 'Data sources' }).click();
     await expect(page).toHaveURL(/#\/sources/);
   });
 

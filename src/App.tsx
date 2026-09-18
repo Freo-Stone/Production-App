@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Shell } from '@/app/Shell';
+import { Matrix } from '@/screens/Matrix';
 import { People } from '@/screens/People';
 import { Products } from '@/screens/Products';
 import { Settings } from '@/screens/Settings';
@@ -23,18 +24,7 @@ function screenFor(path: string) {
   const root = path.split('/')[1] ?? '';
   switch (root) {
     case '':
-      return (
-        <UnderConstruction
-          title="Matrix"
-          icon="matrix"
-          blurb="Product against day, with short/needs-curing colouring."
-          steps={[
-            'Product × day grid with the product and stock columns frozen',
-            'Horizon picker: 1, 2, 4 or 6 weeks, plus the overflow chip',
-            'Tap a cell for every job for that product on that day',
-          ]}
-        />
-      );
+      return <Matrix />;
     case 'jobs':
       return (
         <UnderConstruction

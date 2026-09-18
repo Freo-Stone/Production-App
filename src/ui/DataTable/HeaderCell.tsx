@@ -40,6 +40,7 @@ export interface HeaderCellProps {
 }
 
 export function HeaderCell({
+  id,
   header,
   hint,
   align,
@@ -65,6 +66,11 @@ export function HeaderCell({
     <div
       className="dt-headcell"
       role="columnheader"
+      // The column key, on the header. Its own attribute name on purpose: tests and
+      // anything else that addresses a column say `[data-col="code"]` for the cells,
+      // and a header answering to the same name turns "the code column" into "the
+      // code column including its heading", which reads as an extra row of data.
+      data-headcol={id}
       aria-sort={sortDir === 'asc' ? 'ascending' : sortDir === 'desc' ? 'descending' : 'none'}
       data-align={align}
       data-sortable={sortable}

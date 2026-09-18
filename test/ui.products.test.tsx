@@ -6,7 +6,7 @@ import type { Product } from '@/core/types';
 import { db, seedIfEmpty } from '@/data/db';
 import { signInForTests } from './support/who';
 import { Products } from '@/screens/Products';
-import { cellTexts, click, headerNamed, render, rows, type Rendered } from './support/render';
+import { byText, cellTexts, click, headerNamed, render, rows, type Rendered, typeInto } from './support/render';
 
 /**
  * The product screen end to end in the DOM: what a code arrives as, what a tick
@@ -167,6 +167,41 @@ describe('Products screen', () => {
     click(h.host.querySelector('[role="columnheader"]')!);
     await paint(h);
     expect(cellTexts(h.host, 1).length).toBe(before.length);
+    h.unmount();
+  });
+
+  it('one click picks every row on screen, and is not offered when there are none', async () => {
+    // `Pick all N` used to sit on the toolbar while the board's four live queries
+    // were still answering. Clicked in that moment it set the selection to nothing
+    // at all — a button that reads a number and picks none is a button that lies.
+    // It is only offered when there is something to pick.
+    await db.products.bulkAdd([
+      product('S3'),
+      product('G3', { rank: 2000 }),
+      product('C3', { rank: 3000 }),
+    ]);
+    const h = await renderProducts();
+
+    const pickAll = (): HTMLButtonElement | undefined =>
+      [...h.host.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
+        (b.textContent ?? '').startsWith('Pick all'),
+      );
+
+    const button = pickAll();
+    if (!button) throw new Error('no pick-all button while three rows are on screen');
+    expect(button.textContent).toBe('Pick all 3');
+    click(button);
+    await paint(h);
+
+    for (const code of ['S3', 'G3', 'C3']) {
+      expect(cellInput(h.host, code, 'pick').getAttribute('aria-checked')).toBe('true');
+    }
+    expect(byText(h.host, '3 picked')).toBeTruthy();
+
+    // Filter to nothing and the control goes with the rows it would have picked.
+    typeInto(h.host.querySelector<HTMLInputElement>('input[placeholder^="Filter code"]')!, 'zzz');
+    await paint(h);
+    expect(pickAll()).toBeUndefined();
     h.unmount();
   });
 });

@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useRoute } from '@/app/router';
 import { useCan } from '@/app/session';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useFillBelow } from '@/app/useFillBelow';
@@ -84,6 +85,13 @@ export function Products() {
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [openCode, setOpenCode] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // `#/products?code=S3` arrives from the matrix popup. The row is picked out of
+  // whatever filter is showing, so the drawer opens even if the code is currently
+  // hidden by the filter — a link that lands on a blank screen is a broken link.
+  const wantedCode = useRoute().query.get('code');
+  useEffect(() => {
+    if (wantedCode) setOpenCode(wantedCode);
+  }, [wantedCode]);
   // Who is reading this board. Everything write-shaped is withheld, and the writes
   // themselves are refused in src/data/productRepo.ts, so a viewer cannot edit the
   // range from a console either.
@@ -262,8 +270,14 @@ export function Products() {
                   options={FILTERS}
                   className="w-40"
                 />
-                {/* Picking exists to feed the bulk edit, so it is a writer's control. */}
-                {canEdit ? (
+                {/* Picking exists to feed the bulk edit, so it is a writer's control —
+                    and it appears only when there is something to pick. The rows of
+                    this board arrive from four separate live queries, and for a
+                    moment after the screen opens they are not all in yet: a button
+                    that reads "Pick all 0" and then quietly picks nothing is a
+                    button that lies, so it is not offered until the board is
+                    actually on screen. */}
+                {canEdit && shown.length > 0 ? (
                   <Button
                     size="sm"
                     variant={allShownPicked ? 'primary' : 'default'}
@@ -307,7 +321,13 @@ export function Products() {
             {...(canEdit
               ? { onReorder: (code: string, to: number) => void moveProductInList(code, to, shown) }
               : {})}
-            loading={products === undefined}
+            // Four live queries feed this board. Until all four have answered the
+            // grid is legitimately empty, and an empty grid with no spinner reads
+            // as "there is nothing here" to the person who just imported 2,365
+            // codes. The spinner is the honest answer while they are in flight.
+            loading={
+              products === undefined || settings === undefined || stock === undefined || jobs === undefined
+            }
             rowClassName={(r) => (picked.has(r.code) ? 'bg-accent/[0.07]' : undefined)}
             empty={
               <EmptyState

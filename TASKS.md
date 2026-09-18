@@ -33,7 +33,8 @@ that has not happened yet.
 3. **Live exports** — **done** (M11): the app pulls `exports/location.xlsx` and
    `exports/future.xlsx` from the repository while it is open, compares the blob
    sha, and imports whichever changed.
-4. **Matrix (M4)** — the product × day view, which production entry builds on.
+4. **Matrix (M4)** — **done**: the product × day view, which production entry
+   builds on. See M4 below.
 5. **Production entry (M5)**, then **curing and shotblast (M6)**, then the
    **Friday MYOB queue (M7)**, then the rest of Settings.
 
@@ -105,19 +106,53 @@ now runs inside one IndexedDB transaction, guarded by the concurrency tests in
 Open thread: the drawer's earliest-supply date is passed as `null` — the
 earliest-ready-date maths does not exist yet and belongs with curing (M5/M6).
 
-## M4 — Matrix: product against day · next
+## M4 — Matrix: product against day · done
 
-The main view. A row per product, a column per day, one cell per product-day.
+The main view: a row per current product, a column per calendar day, one number per
+product-day, and the colour of the row saying whether it needs making.
 
-- Freeze product, code, stock and unit columns; days scroll sideways.
-- Horizon picker 1 / 2 / 4 / 6 weeks, plus an overflow chip for jobs past it.
-- Cell colour: short (not enough stock), enough with stock still curing, enough
-  and ready. Baseline-10000 codes flagged.
-- Tap a cell → popup listing every job for that product that day.
-- Numbers come from `calc.ts`: `productPosition`, `demandByCodeAndDay`,
-  `stockOnHand`, `isFarFuture`.
-- Data to enter here is production, so it lands with the same row/pick idiom as
-  this screen.
+- `src/core/matrix.ts` (the arithmetic) and `src/screens/Matrix.tsx` (the board),
+  wired to `/#/` in `src/App.tsx`.
+- **Two rules hold the whole thing up.** MYOB's *Units On Hand* is already net of the
+  open jobs, so a day cell adds up promises and never re-subtracts them — adding a
+  400-unit job leaves the stock columns untouched, and a test says so. And "needs
+  making" comes from the product's **target**, not from the sum of its jobs, which is
+  what decides red or green. Both are written into the header of `matrix.ts` and
+  pinned by name in `test/core.matrix.test.ts`.
+- Code and product pinned to the left; days scroll under them. Horizon 1 / 2 / 4 / 6
+  weeks on the person's own view, so it comes back after a reload and does not
+  move anyone else's board. Day columns are generated, and `resolveColumns` keeps a
+  saved view sane across that — widths for keys that still exist, new keys appended,
+  vanished keys dropped.
+- Short / needs curing / at target as row colour, `!` on a day whose last startable
+  date has passed, `·` on an empty day, **Beyond** for promises outside the view and
+  placeholder dates (4/04/2040) left out of the cells altogether.
+- Tap a day → that number and every job line behind it; tap the row → the whole
+  product, day by day inside the view. Both reach **Open in Products**, and
+  `Products.tsx` now honours `?code=` so the jump lands on the drawer, not at the
+  top of 2,365 codes.
+- Phone: the product, where it stands, and the next four days. Forty-two columns
+  sideways on a 390px screen is not a board.
+- Verified: `test/core.matrix.test.ts` (15), `test/ui.matrix.test.tsx` (11),
+  `e2e/matrix.spec.ts` (5 over desktop + phone + firefox), `docs/screens/matrix.md`.
+  The browser tests name no volume — they sort the board to find the row carrying
+  demand, so they still pass the week the numbers change.
+
+Two things the tests caught, both now fixed, both worth remembering:
+
+* **A phone board with no days on it.** The short list a phone shows is matched
+  against the column keys, and the two sides spelled them differently — the list
+  said `2026-09-18`, the columns said `d1789689600000`. Every day column silently
+  vanished. `matrixDayKey()` in `src/core/matrix.ts` now says it once.
+* **A button that picked nothing.** `Pick all N` on Products fires while the board's
+  four live queries are still answering, and in that moment `shown` is empty: the
+  click set the selection to nothing and the label blinked to `Pick all 0`. The
+  control now appears only when there is something to pick, and the table's spinner
+  waits for all four queries instead of two, so a board that is still arriving does
+  not read as an empty one.
+
+Open thread: entering production from here. The matrix is a reading of the exports;
+the numbers typed into it come with M5.
 
 ## M5 — Production entry
 
