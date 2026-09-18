@@ -27,18 +27,31 @@ if (import.meta.env.PROD) {
   window.addEventListener('load', () => {
     const wb = new Workbox(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL });
 
-    // generateSW parks the new service worker in "waiting" until we say so.
+    // With registerType 'prompt', generateSW parks the new service worker in
+    // "waiting" until someone on the device says so.
+    let askedToUpdate = false;
+
     wb.addEventListener('waiting', () => {
       toast('info', 'New version available', 'Reload when you are ready to get the latest changes.', {
         label: 'Reload',
-        run: () => void wb.messageSkipWaiting(),
+        run: () => {
+          askedToUpdate = true;
+          void wb.messageSkipWaiting();
+        },
       });
     });
 
-    wb.addEventListener('controlling', () => window.location.reload());
+    // `controlling` also fires when a first-installed worker takes over this page,
+    // and reloading then throws away the screen: the app used to reload itself a
+    // second after opening, mid-typing. So the reload only happens for the update
+    // the person here asked for.
+    wb.addEventListener('controlling', () => {
+      if (askedToUpdate) window.location.reload();
+    });
 
     void wb.register().catch(() => {
       /* offline caching is an enhancement; the app works without it */
     });
   });
 }
+

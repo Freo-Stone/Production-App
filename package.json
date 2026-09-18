@@ -17,7 +17,10 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "icons": "python3 scripts/make-icons.py",
-    "check:build": "node scripts/check-build.mjs"
+    "check:build": "node scripts/check-build.mjs",
+    "check:worker": "node scripts/probe-service-worker.mjs",
+    "probe:typing": "node scripts/probe-typing.mjs",
+    "probe:keystrokes": "node scripts/probe-keystroke-churn.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

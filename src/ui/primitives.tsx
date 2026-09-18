@@ -10,6 +10,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { create } from 'zustand';
 import { Icon, type IconName } from '@/ui/Icon';
 
@@ -517,7 +518,7 @@ export function Popover({
       >
         {label}
       </Button>
-      {pos && rect ? (
+      {pos && rect ? createPortal(
         <div
           id="freo-popover"
           role="dialog"
@@ -529,7 +530,11 @@ export function Popover({
           }}
         >
           {children(close)}
-        </div>
+        </div>,
+        // Positioned against the viewport, so it lives at the document root: an
+        // ancestor with a `backdrop-filter` would otherwise become its containing
+        // block — see Modal below, where that pushed the name prompt off screen.
+        document.body,
       ) : null}
     </span>
   );
@@ -558,28 +563,48 @@ export function Modal({
 }) {
   const panel = useRef<HTMLDivElement>(null);
 
+  // Held in a ref so the effect below can depend on `open` alone. Depending on
+  // `onClose` meant that every render passed a new closure, and this effect re-ran
+  // with it — flipping `body { overflow }` and calling focus() on every keystroke
+  // of the name box. Toggling the document's overflow throws away layout for the
+  // whole page, which at full-screen sizes is exactly "a delay between every
+  // letter", and focus() takes the caret out of the field being typed in.
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        close.current();
       }
     };
     document.addEventListener('keydown', onKey);
     // Background scroll would fight the sheet on phones.
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    panel.current?.focus();
+    // Only take focus when nothing inside already has it, so `autoFocus` on the
+    // first field inside the dialog survives.
+    if (!panel.current?.contains(document.activeElement)) panel.current?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   const widths = { sm: '420px', md: '560px', lg: '820px', xl: '1100px', full: '96vw' };
 
-  return (
+  // A dialog is positioned against the viewport, so it is rendered at the document
+  // root instead of where it was invoked. Not tidiness: `backdrop-filter`, `filter`
+  // or `transform` on any ancestor becomes the containing block for
+  // `position: fixed`, and the app's header carries a blur. Rendered in place, the
+  // first-run name prompt was centred inside that 47px strip — its title above the
+  // top of the screen, its dim only covering the header, and every keystroke
+  // repainting inside a blurred region.
+  return createPortal(
     <AnimatePresence>
       {open ? (
         <motion.div
@@ -607,7 +632,13 @@ export function Modal({
             style={{ ['--modal-w' as string]: widths[width] }}
             initial={{ y: 24, opacity: 0.6 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 16, opacity: 0 }}
+            // In on a spring, out on a clock. Left to inherit the spring the panel
+            // stays in the tree for the better part of a second after being
+            // dismissed, and its full-screen scrim is still the topmost element
+            // under the finger for that whole time — measured ~700ms of swallowed
+            // taps after Escape on the name box. A dialog that has gone should stop
+            // being in the way at once.
+            exit={{ y: 16, opacity: 0, transition: { duration: 0.12 } }}
             transition={{ type: 'spring', stiffness: 420, damping: 34 }}
           >
             <header className="flex items-center gap-3 border-b border-line bg-surface2 px-3 py-2">
@@ -626,7 +657,8 @@ export function Modal({
           </motion.div>
         </motion.div>
       ) : null}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
 

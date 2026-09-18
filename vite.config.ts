@@ -13,7 +13,14 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // `autoUpdate` makes the worker skip waiting and claim the clients that are
+      // already open — and a claimed client reloads itself, about a second after
+      // load, with someone's half-typed name on the screen. Updates are offered
+      // here and applied when the person on the device asks for them (main.tsx).
+      registerType: 'prompt',
+      // main.tsx registers the worker with workbox-window so it can offer an
+      // update; nothing should be injected into the page to do it a second time.
+      injectRegister: false,
       includeAssets: [
         'favicon.svg',
         'apple-touch-icon.png',

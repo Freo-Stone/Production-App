@@ -268,3 +268,66 @@ was a cross-check of every string in both real exports against every tracked fil
 It found things nobody had thought to look for, including a real row quoted in a
 source comment. That cross-check is the thing to re-run before any publication, not
 a skim of the diff.
+
+## The name box that lagged, and what was under it
+
+Reported as one thing — a delay between every letter typed into the first-run name
+box — and it turned out to be four, only two of which were about typing. Measuring
+came first: `scripts/probe-typing.mjs` profiles the page while it types, and the CPU
+profile said `focus` was 9.8% of every sample taken while typing in the dialog, and
+nothing at all while typing in a plain Settings field. React was not the cost —
+script was 0.1–1.2ms per keystroke — so the time was going somewhere else entirely.
+
+**A dialog positioned against the window has to be rendered outside the app.** The
+`Modal` rendered where it was invoked, which for the name box was inside the header,
+and the header carries `backdrop-filter: blur(8px)`. A filtered ancestor becomes the
+containing block for `position: fixed`, so the dialog's `fixed inset-0` box was
+2672×47 — the header, not the viewport. The panel was centred inside that strip, at
+`y = −44`, its title above the top of the screen and its dim covering only the
+header, and every keystroke repainted inside a blurred region. `Modal` and `Popover`
+now render into `document.body`. The box is `1230,604` on a 2880×1440 window with the
+scrim the full viewport, which `e2e/dialog.spec.ts` asserts rather than describes.
+
+**An inline arrow in a dependency list is a per-render effect.** The scroll lock,
+the Escape listener and the call to `focus()` lived in one effect that listed
+`onClose` — an inline arrow at every call site, so a new function every render, so
+the effect tore down and re-ran **on every keystroke**: `document.body.style.overflow`
+flipped (layout thrown away for the whole page) and `focus()` was called again, which
+takes the caret out of the field being typed in. The latest callback now sits in a
+ref and the effect depends on `open` alone. `scripts/probe-keystroke-churn.mjs`
+counts these document touches — twenty keystrokes, and after the fix: no focus calls,
+no overflow writes, no listeners added, no forced layouts.
+
+**The app was reloading itself, a second after it opened.** The dialog came back
+after Escape with the typed name gone, which is how this surfaced: `registerType:
+'autoUpdate'` makes the worker claim the open page, and `main.tsx` reloaded on
+`controlling` without asking why. So the page reloaded itself shortly after load,
+mid-typing, and asked for the name again. The comment in that file already said
+updates are offered, never forced; the config did the opposite. Updates are offered
+now, and reload happens only when the toast is tapped — `pnpm run check:worker`
+checks both halves, including that an update still reaches the shop. This was also
+the firefox e2e failure I had been chasing as a flake: the page reloaded between the
+keystrokes and the field was empty.
+
+**A dismissed dialog must stop being in the way at once.** Exiting inherited the
+entry spring, so the panel — and its full-screen scrim — stayed in the tree for the
+better part of a second after Escape, transparent, on top of everything: 700ms of
+swallowed taps, measured by hit-testing the middle of the window. Exit is a 120ms
+fade now, and the same measurement reads 153ms.
+
+Two of these are general enough to keep:
+
+- **Anything that positions itself against the viewport is rendered at the document
+  root.** `backdrop-filter`, `filter`, `transform` and `will-change` on any ancestor
+  quietly re-own `position: fixed`. Nothing in a browser console shows this; the
+  dialog simply appears in the wrong place and paints expensively.
+- **Never list an inline arrow in an effect's dependencies.** If an effect should run
+  when a *state* changes, depend on the state and read the callback through a ref.
+
+Evidence: 174 unit tests, of which the four in `test/ui.modal.test.tsx` include three
+that were confirmed to fail against the previous `primitives.tsx` by stashing it; 82
+browser tests across desktop, phone and firefox, 5 wide-layout skips; 25 build checks
+at both bases; and the worker probe's four checks. The build checker's new worker
+check found its own false positive while being written — it scanned every emitted
+file, and `sw.js` contains the string "sw.js" in its own sourcemap comment, so a build
+that registered nothing passed it. Narrowed to the scripts the page actually loads.

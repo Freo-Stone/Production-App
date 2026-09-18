@@ -141,7 +141,25 @@ if (check(existsSync(manifestPath), 'manifest exists')) {
 
 // 3. The service worker, or an installed app never updates.
 fileOk(`${base}sw.js`, 'service worker');
-fileOk(`${base}registerSW.js`, 'service worker registration');
+// The app registers the worker itself in src/main.tsx, with workbox-window, so that
+// an update can be offered rather than applied from under whoever is using the app.
+// The injected registration script therefore is not emitted, and a page that still
+// pointed at one would ask for a file that does not exist on every single load.
+check(
+  !html.includes('registerSW.js'),
+  'the page does not reference a registration script this build does not emit',
+);
+// Only the scripts the page actually loads. Searching every emitted file is too
+// loose to mean anything: `sw.js` contains the string "sw.js" in its own
+// sourceMappingURL comment, so a build whose page registered nothing at all still
+// passed this the first time I wrote it.
+const pageScripts = local.map((r) => diskPath(r)).filter((p) => p !== null && p.endsWith('.js'));
+const registration = pageScripts.find((p) => readFileSync(p, 'utf8').includes('sw.js'));
+check(
+  registration !== undefined,
+  'a script the page loads registers the service worker',
+  registration ? registration.slice(root.length + 1) : `none of the ${pageScripts.length} page script(s) mention sw.js`,
+);
 
 // 4. The privacy invariant. This repository holds the shop's state and the mirrored
 //    MYOB exports in a sibling repository, and the artifact is what goes on the

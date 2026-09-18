@@ -29,6 +29,13 @@ pnpm test           # unit + jsdom component tests
 pnpm run e2e        # playwright: desktop, phone, firefox
 ```
 
+Four checks sit outside the unit and browser suites, because they need a built or
+served copy: `pnpm run check:build` (what the build points at; this one runs in CI),
+`pnpm run check:worker` (the app does not reload itself, and an update is still
+offered and still applies when tapped), and `pnpm run probe:typing` with
+`pnpm run probe:keystrokes` (what a keystroke actually costs). They are how the
+dialog lag was found and how it is kept fixed — see `TASKS.md`.
+
 Pushing to `main` runs `.github/workflows/deploy.yml`: tests, then a build with
 the right `VITE_BASE`, then `scripts/check-build.mjs` resolving everything the page
 and the manifest point at — and failing if the build output holds anything that is
