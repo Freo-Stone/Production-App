@@ -85,12 +85,6 @@ export async function scheduleSource(): Promise<ScheduleSource> {
   };
 }
 
-/** The plan items for one code that the schedule still has to honour. */
-export async function planItemsForCode(code: string): Promise<PlanItem[]> {
-  const all = await db.planItems.where('code').equals(code).toArray();
-  return all.filter((item) => !item.deleted && item.status !== 'cancelled');
-}
-
 /**
  * Put a make on the plan.
  *

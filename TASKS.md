@@ -1089,6 +1089,42 @@ reports, asking for undated lines adds exactly what the chip claims, a search sa
 much it took out, and pressing a row explains itself in things a person can go and look
 at.
 
+## The writer layer, counted · done
+
+The stub walk's worst finding was that the ledger's vocabulary was all declaration and
+no writing — *"Every `batch.*` action in the ledger's vocabulary — create, move, split,
+blast, enter, write off, undo — had been declared in the type and never written."* After
+six rounds of screens that needed to be worth asking again, so it was counted rather
+than assumed.
+
+**All 27 declared `EventAction`s have a writer.** There is no action in the vocabulary
+that nothing can log, which means the Production log's family chips can never be the
+kind of lie they were — a filter for a thing the app is incapable of recording.
+
+| Writer | Screen that reaches it | Ledger actions |
+| --- | --- | --- |
+| `recordEntry`, `undoEntry` | Daily entry | `batch.create`, `batch.undo` |
+| `moveBatchStage`, `writeOffBatch`, `advanceDueBatches` | Curing | `batch.move`, `batch.writeOff` |
+| `startBlast`, `finishBlast` | Shotblast | `batch.blast`, `batch.split` |
+| `markEntered`, `unmarkEntered` | MYOB entry | `batch.enterMyob` |
+| `addPlanItem`, `startPlanItem`, `cancelPlanItem` | The making plan | `plan.add`, `plan.start`, `plan.cancel` |
+| `patchProduct`, `bulkPatchProducts`, `moveProductInList`, `applyCsvUpdates` | Products, CSV | `product.update`, `rank.change` |
+| accounts and devices | People | six `account.*`, two `auth.*`, `device.label`, `device.revoke` |
+| `importFlow`, `exportSync`, `syncEngine` | Data sources, sync | `import.commit`, `export.import`, `export.failed`, `sync.conflict` |
+| view defaults | any table's ⋯ menu | `view.setDefault` |
+
+**Two readers had no caller**, counted in the same pass. `planItemsForCode` was written
+with the plan and is redundant with `scheduleSource`, which already returns every plan
+line — deleted in this commit rather than left to be "useful one day".
+`batchesOnLineOnDay` has had no caller since Curing shipped; it is a rack-list by line
+and day, so it stays, but it is named here so that the next screen that needs the racks
+for one order line finds it in the log instead of writing a third version of it.
+
+The audit is a count, not a clean bill of health: a writer existing is not the same as a
+writer being *reachable in the way the floor needs*. That question is answered screen by
+screen in each section above, and the bugs those screens still have are listed under
+*Found on the way* on each of them.
+
 ## M12 — The sync loop · planned, not built
 
 `src/data/syncEngine.ts` is finished and tested — pull, merge, protect local

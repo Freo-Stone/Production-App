@@ -10,7 +10,6 @@ import {
   addPlanItem,
   cancelPlanItem,
   PlanRefusedError,
-  planItemsForCode,
   scheduleSource,
   startPlanItem,
 } from '@/data/planRepo';
@@ -298,20 +297,5 @@ describe('what the schedule screen reads', () => {
     // Cancelled lines come back so the screen can say what was taken off; they are
     // left out of the plan maths by the core rules.
     expect(source.planItems.map((i) => i.status)).toEqual(['planned', 'cancelled']);
-  });
-
-  it('lists the plan lines a code still has to honour', async () => {
-    await db.products.put(product('A3'));
-    await db.products.put(product('B2'));
-    const keep = await addPlanItem({ code: 'A3', qty: 8, promisedFor: NOW + 5 * DAY });
-    const other = await addPlanItem({ code: 'B2', qty: 3, promisedFor: null });
-    const gone = await addPlanItem({ code: 'A3', qty: 4, promisedFor: null });
-    await cancelPlanItem(gone.id, 'duplicate');
-
-    const forA3 = await planItemsForCode('A3');
-    expect(forA3.map((i) => i.id)).toEqual([keep.id]);
-    expect(await planItemsForCode('B2')).toHaveLength(1);
-    expect(other.code).toBe('B2');
-    expect(await planItemsForCode('ZZ9')).toEqual([]);
   });
 });
