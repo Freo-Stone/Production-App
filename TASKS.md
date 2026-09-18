@@ -7,13 +7,17 @@ Commands (all from the project root):
 
 ```
 pnpm run typecheck    # tsc on the app and the node config
-pnpm test             # vitest, jsdom + fake-indexeddb, 260 tests
+pnpm test             # vitest, jsdom + fake-indexeddb, 304 tests
 pnpm run build        # typecheck + vite build into dist/
 pnpm run e2e          # playwright: desktop, phone, firefox against a preview build
 ```
 
 `pnpm run e2e` needs `dist/` from `pnpm run build`; the config starts
 `vite preview --port 4173 --strictPort` itself and reuses one already running.
+
+`docs/running.md` holds the rest: the four checks that need a built copy, what a
+push to `main` does, where the data lives, and the index of `docs/`. There is no
+`README.md` — this is an in-house app, so the instructions live with the plan.
 
 ## Working order from here
 
@@ -483,6 +487,23 @@ installer are told over HTTP is the shop's blue), and 6 new checks in
 gone; `pnpm run brand` is the one command, and it stops with what it measured if the
 logo it is handed has different colours in it than the ones it draws.
 
+
+## The menu is words now · done
+
+*"remove the emojis from the menu"* — the pictures beside every entry are gone:
+the desktop rail, the collapsed rail, the five bottom tabs and the phone's **All
+screens** sheet are text.
+
+- `src/app/nav.ts` lost its `icon` field entirely. `Shell.tsx` was the only reader,
+  and a field nothing draws is a field that quietly rots.
+- The collapsed rail has nothing left to draw, so it shows three letters of the
+  short name — `MAT`, `ENT`, `MYO` — with the full name on the tooltip and as the
+  button's accessible name, so a screen reader still says *Data sources* and not
+  *DAT*. Say the word and the collapse goes away instead.
+- Pinned by `the menu is words, not pictures` in `e2e/shell.spec.ts`: every entry in
+  the rail holds no `svg`, and so does every row of the More sheet.
+- Everywhere else keeps its pictures — the header buttons, the toast, the table's
+  sort and column marks. This was about the menu, not the icon set.
 
 ## M12 — The sync loop · planned, not built
 
