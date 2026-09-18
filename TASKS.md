@@ -158,11 +158,35 @@ Two things the tests caught, both now fixed, both worth remembering:
 Open thread: entering production from here. The matrix is a reading of the exports;
 the numbers typed into it come with M5.
 
-## M5 — Production entry
+## M5 — Production entry · done
 
-Five lines (three machines, handmade, shotblast), trays of a per-product size,
-curing clock starting at entry. `qtyFromTrays`/`traysFromQty` and
-`readyAt`/`isCureComplete` already exist in `calc.ts`.
+`/#/entry`, `docs/screens/entry.md`. Five lines from Settings, trays of a
+per-product size, the cure clock starting when the make starts.
+
+The maths was already in `calc.ts` and had never been called: `qtyFromTrays`,
+`readyAt`, `isCureComplete`, `formatBatchNo`. What was missing was everything
+between a counted number of trays and a record — no `Batch` had ever been created
+by this app, which is why the curing, shotblast and MYOB counts in the menu sat
+at zero and the board's *Incl. curing & blasted* column was an exact copy of
+*On hand*.
+
+Three modules, in that order:
+
+- `src/core/batches.ts` — the rules, pure: when the cure is due (days counted
+  from the start of the day, hours from the moment when the shop measures in
+  hours), which stage a make is born in (shotblast is born needing its blast as
+  well, and curing beside it), the refusals a row can get, the day's batch
+  sequence, and what may still be taken back.
+- `src/data/batchRepo.ts` — `recordEntry` and `undoEntry`. One transaction per
+  sheet, `assertCan('production.record')` first, one `batch.create` ledger line
+  per rack, the operator's name taken from the login. Nothing invented for a row
+  it cannot log: it comes back in the receipt with the reason.
+- `src/screens/Entry.tsx` — one line, one day, rows of product + trays, the
+  quantity shown before it is written down. A Matrix row's *Log making of this*
+  arrives here with the code chosen, then leaves the address.
+
+`dueToAdvance` is here and wired to nothing yet: it answers "which racks are due"
+using `readyAt`, and the curing screen is the one that will call it.
 
 ## M6 — Curing and shotblast views
 
@@ -199,6 +223,22 @@ next export replaces it.
 the rest of the keys — cure defaults, the five lines and tray sizes, which stock
 locations count, default view per screen. Most already exist in
 `core/defaults.ts`; the screen does not.
+
+A page-by-page read of the app in this session counted the keys: of Settings' 35
+named keys, **7 are editable on the screen, 2 are read-only and can never change,
+and 26 have no control at all** — some of them read by code that had no screen
+(`blastingCompletesCure`, `excludedShipVia`, `countsReadyAsAvailable`,
+`placeholderYears`, `farFutureMonths`, `blastHandlingDays`, `bufferDays`), the rest
+not read by anything. Two controls are decorative: `sync.autoPush`, whose only
+reader is the tile underneath it, and *Push changes on its own*, whose hint names a
+**Sync button that does not exist in the app**. The cure default quoted in the
+product drawer ("Default in Settings is 2") has no Settings control, and new codes
+are seeded with a hard-coded 2.
+
+The keys M5 now reads — `production.batchNumberFormat`, `cureTimeUnit`,
+`blastingCompletesCure` — are the first ones since M8 to gain a real consumer. The
+fix is the same either way: give each switch a lever, or stop showing it. That work
+is queued behind the make side, which is what the switches were waiting for.
 
 ## M9 — Hosting · done. The mirrored exports · still a manual drop
 
@@ -559,6 +599,63 @@ the data repository. `exports/location.xlsx` and `exports/future.xlsx` are read 
 wherever Settings says; if the Power Automate flow has never written them, the chips
 will read **File not found** the moment a token is in place. That is the next thing
 to look at on his machine, and the screen will name it exactly.
+
+## Seven pages that said "not wired up yet" · being built, one at a time
+
+> *"i need you to go through every page as most are still saying it needs wiring up"*
+
+He was right, and the count was worth having: **twelve menu entries, five real
+screens, seven placeholders** — Future jobs, Schedule, Daily entry, Production log,
+Curing, Shotblast, MYOB entry. A viewer sees seven stubs out of nine items, and on a
+phone **three of the four bottom tabs** were stubs. Every page was photographed at
+HEAD; the contact sheet is the honest version of the menu.
+
+What the walk turned out to be, though, was not seven screens missing. It was **the
+whole make side having nothing under it**:
+
+- Nothing in the app had ever created a `Batch`. The only write to `db.batches` was
+  a remote document being applied, on a path that cannot be reached from the UI.
+- Every `batch.*` action in the ledger's vocabulary — create, move, split, blast,
+  enter, write off, undo — had been declared in the type and never written.
+- The curing, shotblast and MYOB counts in the menu were correct code reading an
+  empty table, so they were permanently zero; `late` had no menu item and no
+  computation at all.
+- `db.planItems` was fully plumbed — type, table, indexes, state document, merge
+  tests — with no production code touching it.
+- Nine pure helpers in `calc.ts` had no callers and no tests: `qtyFromTrays`,
+  `traysFromQty`, `readyAt`, `isCureComplete`, `assignMyobRunDate`, `isLate`,
+  `demandByCodeAndDay`, `formatBatchNo`, `ceilTrays`. There was no
+  `test/core.calc.test.ts` because nothing was reachable enough to need one.
+
+Two of the seven were closer than they looked. **Future jobs** already exists: the
+jobs table on Data sources is a sortable, resizable, filterable table of the same
+rows under a tab called "Future jobs" — the stub promised what had already shipped,
+one menu item away. And the **Production log** has been accumulating since the first
+import — eighteen call sites write the ledger and no screen has ever read it.
+
+Order agreed with him: **Daily entry first**, because it is the floor's daily
+driver and because it is the thing that makes batches exist — everything after it
+has something real to read. Daily entry, Curing, Shotblast, MYOB entry, Production
+log, Future jobs, Schedule. Entry from its own screen, with a *Log making of this*
+jump from a Matrix row.
+
+M5 is in under *Daily entry*: see above, and `docs/screens/entry.md`. The curing
+count in the menu moved off zero the moment the first rack was logged, which is the
+first time in this app's life a badge has meant anything.
+
+**Found on the way, to fix rather than leave.** The Matrix cannot resize, hide or
+reset its day columns (the day keys are not in the view's declared keys, so a
+dragged column snaps back, and "fit all to this width" on a day column nulls every
+saved width). Demand promised *before* today is dropped from the board while
+Products counts the same lines, so two screens disagree about the order book. The
+Products "needs setting" warning colour never paints for anyone who can edit,
+because a column with a custom render drops its tone. Products toasts "0 products
+updated" on a no-op. The phone's More sheet shows no counts while the tab bar does.
+The auto-import line sends people to Settings for reasons Settings cannot fix —
+including "automatic import is switched off", when the switch is on that very line.
+And connect-this-device is a catch-22: the link needs accounts to exist, and the
+screen refuses to run when they do, which makes the remedy printed on the People
+screen impossible to follow.
 
 ## M12 — The sync loop · planned, not built
 

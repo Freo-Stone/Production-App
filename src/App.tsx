@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Shell } from '@/app/Shell';
+import { Entry } from '@/screens/Entry';
 import { Matrix } from '@/screens/Matrix';
 import { People } from '@/screens/People';
 import { Products } from '@/screens/Products';
@@ -47,18 +48,7 @@ function screenFor(path: string) {
         />
       );
     case 'entry':
-      return (
-        <UnderConstruction
-          title="Daily entry"
-          icon="entry"
-          blurb="Log trays made per line."
-          steps={[
-            'One row per line for the day, entered in trays',
-            'Trays × yield = quantity in the product’s unit',
-            'Batches land in curing, or awaiting shotblast on that route',
-          ]}
-        />
-      );
+      return <Entry />;
     case 'log':
       return (
         <UnderConstruction

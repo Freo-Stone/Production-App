@@ -139,19 +139,31 @@ test.describe('MYOB import', () => {
     // The import pushes the table down, so the handle has to be in view before
     // its box means anything to the mouse.
     await handle.scrollIntoViewIfNeeded();
-    const box = await handle.boundingBox();
-    expect(box).not.toBeNull();
 
     const before = await columnWidths(page);
-    const startX = box!.x + 4;
-    await page.mouse.move(startX, box!.y + 12);
-    await page.mouse.down();
-    await page.mouse.move(startX + 100, box!.y + 12, { steps: 8 });
-    await page.mouse.up();
+    const target = before[0]! + 100;
 
     // The drag is 100px, so the first column grows by 100px. Asserting the delta
-    // rather than an absolute width keeps the test honest if defaults change. And
-    // polled, because the width goes to IndexedDB and comes back through a live
+    // rather than an absolute width keeps the test honest if defaults change.
+    //
+    // Taken again each time, because the box goes stale on a phone: the "Stock
+    // loaded" toast drops over the table and the page moves under the pointer, and
+    // a mouse press at the old coordinates lands on nothing. The target stays the
+    // one the first drag asked for, so a retry finishes the same drag rather than
+    // starting a second one.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const box = await handle.boundingBox();
+      expect(box).not.toBeNull();
+      const left = await columnWidths(page);
+      const delta = target - left[0]!;
+      await page.mouse.move(box!.x + 4, box!.y + 12);
+      await page.mouse.down();
+      await page.mouse.move(box!.x + 4 + delta, box!.y + 12, { steps: 8 });
+      await page.mouse.up();
+      if ((await columnWidths(page))[0] === target) break;
+    }
+
+    // Polled, because the width goes to IndexedDB and comes back through a live
     // query: reading once right after the pointer is up used to catch the old
     // width on a loaded machine and report a drag that never happened.
     await expect

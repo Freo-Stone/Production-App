@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type ReactElement } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useCan } from '@/app/session';
 import { navigate } from '@/app/router';
 import { useFillBelow } from '@/app/useFillBelow';
 import { useMediaQuery } from '@/app/useMediaQuery';
@@ -506,6 +507,9 @@ function CellDialog({
   weeks: number;
   onClose: () => void;
 }) {
+  // Someone looking at a shortfall should be able to act on it from where they
+  // are standing. A viewer gets the Products link only, because entry would refuse them.
+  const canLog = useCan('production.record');
   const open = row != null;
   const lines = row && day != null && settings ? cellLines(jobs, row.code, day, settings) : [];
   const title = row ? `${row.code}${day != null ? ` · ${new Date(day).toDateString()}` : ''}` : '';
@@ -533,9 +537,16 @@ function CellDialog({
             <span className="text-xs text-ink3">
               {day != null ? `Promised ${dueIn(day)}` : `Every day in the next ${weeks} weeks`}
             </span>
-            <Button size="sm" onClick={() => navigate(`/products?code=${row.code}`)}>
-              Open in Products
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {canLog ? (
+                <Button size="sm" variant="primary" onClick={() => navigate(`/entry?code=${row.code}`)}>
+                  Log making of this
+                </Button>
+              ) : null}
+              <Button size="sm" onClick={() => navigate(`/products?code=${row.code}`)}>
+                Open in Products
+              </Button>
+            </div>
           </div>
         ) : null
       }
