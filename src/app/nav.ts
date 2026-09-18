@@ -1,6 +1,5 @@
 import { can, type Capability } from '@/core/roles';
 import type { AccountRole } from '@/core/types';
-import type { IconName } from '@/ui/Icon';
 
 /**
  * Navigation model, shared by the desktop rail and the mobile tab bar so the
@@ -12,9 +11,12 @@ export interface NavItem {
   /** Hash route, e.g. `/curing`. */
   path: string;
   label: string;
-  /** Fitted for the 5-slot mobile bar. */
+  /**
+   * Fitted for the 5-slot mobile bar, and the source of the letters the collapsed
+   * rail shows. The menu is words: a picture beside every entry costs a glance to
+   * decode and says nothing the word does not already say.
+   */
   short: string;
-  icon: IconName;
   group: NavGroup;
   /** One-line description shown in the mobile "More" sheet and page headers. */
   blurb: string;
@@ -41,7 +43,6 @@ export const NAV: NavItem[] = [
     path: '/',
     label: 'Matrix',
     short: 'Matrix',
-    icon: 'matrix',
     group: 'plan',
     blurb: 'Product against day: what is promised, what is short, what is curing.',
   },
@@ -49,7 +50,6 @@ export const NAV: NavItem[] = [
     path: '/jobs',
     label: 'Future jobs',
     short: 'Jobs',
-    icon: 'jobs',
     group: 'plan',
     blurb: 'Every open sales-order line from the MYOB export.',
   },
@@ -57,7 +57,6 @@ export const NAV: NavItem[] = [
     path: '/schedule',
     label: 'Schedule',
     short: 'Schedule',
-    icon: 'schedule',
     group: 'plan',
     blurb: 'What needs making, and the latest day it can start.',
   },
@@ -65,7 +64,6 @@ export const NAV: NavItem[] = [
     path: '/entry',
     label: 'Daily entry',
     short: 'Entry',
-    icon: 'entry',
     group: 'make',
     blurb: 'Log trays made per line. Quantities follow each product’s tray yield.',
   },
@@ -73,7 +71,6 @@ export const NAV: NavItem[] = [
     path: '/log',
     label: 'Production log',
     short: 'Log',
-    icon: 'log',
     group: 'make',
     blurb: 'Every batch, its stage history and who made it.',
   },
@@ -81,7 +78,6 @@ export const NAV: NavItem[] = [
     path: '/curing',
     label: 'Curing',
     short: 'Curing',
-    icon: 'curing',
     group: 'make',
     blurb: 'Batches on the cure clock, due by day.',
     badge: 'curing',
@@ -90,7 +86,6 @@ export const NAV: NavItem[] = [
     path: '/shotblast',
     label: 'Shotblast',
     short: 'Blast',
-    icon: 'blast',
     group: 'make',
     blurb: 'Awaiting blast, on the blaster, and blasted.',
     badge: 'shotblast',
@@ -99,7 +94,6 @@ export const NAV: NavItem[] = [
     path: '/myob',
     label: 'MYOB entry',
     short: 'MYOB',
-    icon: 'myob',
     group: 'ship',
     blurb: 'The weekly run: cured and blasted stock ready to key into MYOB.',
     badge: 'myob',
@@ -108,7 +102,6 @@ export const NAV: NavItem[] = [
     path: '/products',
     label: 'Products',
     short: 'Products',
-    icon: 'products',
     group: 'setup',
     blurb: 'Pick the current range, set route, unit, tray yield and target.',
   },
@@ -116,7 +109,6 @@ export const NAV: NavItem[] = [
     path: '/sources',
     label: 'Data sources',
     short: 'Data',
-    icon: 'sources',
     group: 'setup',
     blurb: 'MYOB exports: freshness, contents and manual import.',
     capability: 'sources.import',
@@ -125,7 +117,6 @@ export const NAV: NavItem[] = [
     path: '/settings',
     label: 'Settings',
     short: 'Settings',
-    icon: 'settings',
     group: 'setup',
     blurb: 'Cure times, lines, the weekly entry day and sync.',
     capability: 'settings.manage',
@@ -134,7 +125,6 @@ export const NAV: NavItem[] = [
     path: '/people',
     label: 'People',
     short: 'People',
-    icon: 'user',
     group: 'setup',
     blurb: 'Who can sign in, what they may do, and which devices are allowed.',
     capability: 'people.manage',

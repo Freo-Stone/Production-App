@@ -34,6 +34,29 @@ test.describe('shell', () => {
     await expect(page).toHaveURL(/#\/sources/);
   });
 
+  test('the menu is words, not pictures', async ({ page }) => {
+    // Asked for outright: *"remove the emojis from the menu"*. The entries are the
+    // words now, on the rail, in the collapsed rail and in the bottom tabs — so a
+    // picture cannot come back into any of them by accident.
+    await openApp(page);
+
+    const SCREENS = /Matrix|Jobs|Schedule|Entry|Log|Curing|Blast|MYOB|Products|Data sources|Settings|People|More/;
+    const entries = page.locator('nav').first().getByRole('button', { name: SCREENS });
+    expect(await entries.count()).toBeGreaterThanOrEqual(4);
+    for (const entry of await entries.all()) {
+      expect(await entry.locator('svg').count()).toBe(0);
+    }
+
+    // The phone's More sheet is the same list, and the same rule.
+    const more = page.getByRole('button', { name: 'More', exact: true });
+    if (await more.count()) {
+      await more.click();
+      const sheet = page.getByRole('dialog');
+      await expect(sheet.getByRole('button', { name: /Production log/ })).toBeVisible();
+      expect(await sheet.locator('svg').count()).toBe(0);
+    }
+  });
+
   test('the theme flips and stays flipped after a reload', async ({ page }) => {
     await openApp(page);
     const before = await page.locator('html').getAttribute('data-theme');

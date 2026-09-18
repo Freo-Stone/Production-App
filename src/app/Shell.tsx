@@ -81,19 +81,32 @@ function NavLink({
         onPick?.();
       }}
       aria-current={active ? 'page' : undefined}
+      // The collapsed rail shows three letters and says the whole name. With no
+      // picture left to draw, a button whose only visible text is "MAT" still has to
+      // be read out as the screen it goes to.
+      aria-label={collapsed ? item.label : undefined}
       title={collapsed || mobile ? item.label : undefined}
       className={cx(
-        'relative flex items-center gap-2.5 rounded-[var(--radius-md)] font-600 transition-colors',
+        'relative flex items-center rounded-[var(--radius-md)] font-600 transition-colors',
         mobile
-          ? 'h-full w-full flex-col justify-center gap-0.5 !px-1 text-[0.68rem]'
+          ? 'h-full w-full justify-center px-1 text-[0.72rem]'
           : collapsed
-            ? 'h-9 w-9 justify-center'
+            ? 'h-9 w-9 justify-center text-[0.66rem] tracking-wide'
             : 'h-8 px-2 text-[0.85rem]',
         active ? 'bg-surface3 text-ink' : 'text-ink2 hover:bg-surface2 hover:text-ink',
       )}
     >
-      <Icon name={item.icon} size={mobile ? 19 : 17} className={active ? 'text-accent' : undefined} />
-      {mobile ? <span className="truncate">{item.short}</span> : collapsed ? null : <span className="truncate">{item.label}</span>}
+      {
+        mobile ? (
+          <span className="truncate">{item.short}</span>
+        ) : collapsed ? (
+          // Three letters of the short name. The tooltip and the accessible name
+          // both carry the full one.
+          <span className="text-ink2">{item.short.slice(0, 3).toUpperCase()}</span>
+        ) : (
+          <span className="truncate">{item.label}</span>
+        )
+      }
       {badge ? (
         <span
           className={cx(
@@ -191,12 +204,11 @@ function MobileTabs({ path }: { path: string }) {
           type="button"
           onClick={() => setMore(true)}
           className={cx(
-            'flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 text-[0.68rem] font-600',
+            'flex h-full w-full items-center justify-center px-1 text-[0.72rem] font-600',
             moreActive ? 'bg-surface3 text-ink' : 'text-ink2',
           )}
         >
-          <Icon name="more" size={19} className={moreActive ? 'text-accent' : undefined} />
-          <span>More</span>
+          More
         </button>
       </nav>
 
@@ -218,11 +230,10 @@ function MobileTabs({ path }: { path: string }) {
                         navigate(item.path);
                       }}
                       className={cx(
-                        'flex items-center gap-3 rounded-[var(--radius-md)] border px-2.5 py-2 text-left',
+                        'block rounded-[var(--radius-md)] border px-3 py-2.5 text-left',
                         routeIsActive(item.path, path) ? 'border-accent/50 bg-surface3' : 'border-line bg-surface2',
                       )}
                     >
-                      <Icon name={item.icon} size={18} className="text-accent" />
                       <span className="min-w-0">
                         <span className="block text-sm font-650">{item.label}</span>
                         <span className="block text-xs text-ink3">{item.blurb}</span>
