@@ -59,7 +59,36 @@ export async function signOut(page: Page): Promise<void> {
   await expect(page.getByText('Who is on this device?')).toBeVisible();
 }
 
+/**
+ * Start from a browser that cannot be holding yesterday's build.
+ *
+ * The suite runs against a rebuilt `dist`, Playwright keeps one browser profile
+ * for the whole worker, and the app installs a service worker that precaches the
+ * shell. Together those mean a test can be handed an older bundle out of the
+ * cache — it then drives code that is no longer on disk, and passes. So: run a
+ * throwaway navigation, unregister whatever worker that origin has and drop its
+ * caches, and only then load the screen under test.
+ *
+ * The app still installs its worker while the test runs, so the install path is
+ * still exercised. What is not covered is serving a second load out of the
+ * cache — which is precisely the thing that made tests lie.
+ */
+async function startClean(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    void navigator.serviceWorker
+      ?.getRegistrations?.()
+      .then((rs) => rs.forEach((r) => void r.unregister()));
+    void window.caches?.keys?.().then((ks) => ks.forEach((k) => void window.caches.delete(k)));
+  });
+  await page.goto('/');
+  await page.evaluate(async () => {
+    for (const registration of await navigator.serviceWorker.getRegistrations()) await registration.unregister();
+    for (const key of await caches.keys()) await caches.delete(key);
+  });
+}
+
 export async function openApp(page: Page, route = '/'): Promise<void> {
+  await startClean(page);
   await page.goto(`/#${route}`);
   await signIn(page);
 }
@@ -120,6 +149,58 @@ export async function importBoth(page: Page): Promise<void> {
   await openImportPanel(page);
   await page.locator('input[type="file"]').setInputFiles([FILES.stock, FILES.jobs]);
   await loadAllStaged(page);
+}
+
+/**
+ * Find one code in the Products grid. The filter box is the shop's own way in, so
+ * a test that needs one row filters for it instead of scrolling for it.
+ */
+export function searchProducts(page: Page, term: string): Promise<void> {
+  return page.getByPlaceholder('Filter code, description or note…').fill(term);
+}
+
+/** One cell of one product's row, addressed by the code and the column's own key. */
+export function productCell(page: Page, code: string, column: string): ReturnType<Page['locator']> {
+  return page
+    .locator('[role="row"]')
+    .filter({ has: page.locator('[data-col="code"]', { hasText: new RegExp(`^${code}$`) }) })
+    .locator(`[data-col="${column}"]`);
+}
+
+/** Switch a code on, so it becomes something the shop says it makes. */
+export async function enableProduct(page: Page, code: string): Promise<void> {
+  await searchProducts(page, code);
+  const box = productCell(page, code, 'enabled').locator('[role="checkbox"]');
+  await expect(box).toBeVisible();
+  await box.click();
+  await expect(box).toHaveAttribute('aria-checked', 'true');
+}
+
+/** "Made how" — a code cannot be logged until the shop has said how it is made. */
+export async function setProductRoute(page: Page, code: string, route: 'manufacture' | 'shotblast'): Promise<void> {
+  const select = productCell(page, code, 'route').locator('select');
+  await select.selectOption(route);
+  await expect(select).toHaveValue(route);
+}
+
+/**
+ * Import both exports and switch one code on as a made product. That is the whole
+ * setup every production screen needs: a real code, from the real exports.
+ *
+ * `route` is what the shop says it makes it by. Pass `null` to leave it as the
+ * export left it — unset — which is the state a code really arrives in, and the
+ * state Daily entry has to refuse rather than guess at.
+ */
+export async function setupMadeProduct(
+  page: Page,
+  code: string,
+  route: 'manufacture' | 'shotblast' | null = 'manufacture',
+): Promise<void> {
+  await openApp(page, '/sources');
+  await importBoth(page);
+  await page.goto('/#/products');
+  await enableProduct(page, code);
+  if (route !== null) await setProductRoute(page, code, route);
 }
 
 /** Column widths of the grid header, as numbers. */

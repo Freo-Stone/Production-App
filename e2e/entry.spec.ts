@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support';
-import { importBoth, openApp } from './support';
+import { importBoth, openApp, productCell, searchProducts, setupMadeProduct } from './support';
 
 /**
  * The floor's own screen, driven through the real build.
@@ -14,33 +14,17 @@ import { importBoth, openApp } from './support';
 
 const CODE = 'GL4';
 
-const search = (page: Page, term: string) =>
-  page.getByPlaceholder('Filter code, description or note…').fill(term);
+// The Products grid helpers live in support.ts now that two screens drive it; these
+// are the local names the rest of this file reads best with.
+const search = searchProducts;
+const cell = productCell;
 
-const cell = (page: Page, code: string, column: string) =>
-  page
-    .locator('[role="row"]')
-    .filter({ has: page.locator('[data-col="code"]', { hasText: new RegExp(`^${code}$`) }) })
-    .locator(`[data-col="${column}"]`);
-
-/** Make GL4 a current product, the way the shop does it on the Products screen. */
-const switchOn = async (page: Page): Promise<void> => {
-  // The exports are dropped on the Data sources screen, which is where a person
-  // drops them; the code is then switched on over in Products.
-  await openApp(page, '/sources');
-  await importBoth(page);
-  await page.goto('/#/products');
-  await search(page, CODE);
-  await expect(cell(page, CODE, 'enabled')).toBeVisible();
-  await cell(page, CODE, 'enabled').locator('[role="checkbox"]').click();
-  await expect(cell(page, CODE, 'enabled').locator('[role="checkbox"]')).toHaveAttribute('aria-checked', 'true');
-};
-
-/** "Made how" — a product cannot be logged until the shop has said how it is made. */
-const setRoute = async (page: Page, route: 'manufacture' | 'shotblast'): Promise<void> => {
-  await cell(page, CODE, 'route').locator('select').selectOption(route);
-  await expect(cell(page, CODE, 'route').locator('select')).toHaveValue(route);
-};
+/**
+ * Make GL4 a current product, the way the shop does it on the Products screen —
+ * and say how it is made, because a code cannot be logged until it has a route.
+ * `null` leaves the route out, which is where an imported code starts.
+ */
+const switchOn = (page: Page, route: 'manufacture' | 'shotblast' | null = 'manufacture') => setupMadeProduct(page, CODE, route);
 
 const trays = (page: Page) => page.getByLabel('Trays');
 
@@ -52,7 +36,7 @@ test.describe('daily entry', () => {
   let second = '';
 
   test('a code that is not set up stops the sheet, and says which screen fixes it', async ({ page }) => {
-    await switchOn(page);
+    await switchOn(page, null);
     // An imported code arrives with no route: the export does not know how it is made.
     await page.goto('/#/entry');
     await expect(page.getByRole('button', { name: /Another product/ })).toBeVisible();
@@ -67,7 +51,6 @@ test.describe('daily entry', () => {
 
   test('a day of making is logged, and is still there when the browser is reopened', async ({ page }) => {
     await switchOn(page);
-    await setRoute(page, 'manufacture');
     await page.goto('/#/entry');
 
     await page.getByLabel('Product').selectOption(CODE);
@@ -95,8 +78,7 @@ test.describe('daily entry', () => {
   });
 
   test('a shotblast make waits for the blaster as well as the cure', async ({ page }) => {
-    await switchOn(page);
-    await setRoute(page, 'shotblast');
+    await switchOn(page, 'shotblast');
     await page.goto('/#/entry');
 
     await page.getByLabel('Product').selectOption(CODE);
@@ -118,7 +100,6 @@ test.describe('daily entry', () => {
 
   test('two products on one line are two racks, and a wrong one can be taken back', async ({ page }) => {
     await switchOn(page);
-    await setRoute(page, 'manufacture');
     // A second current product, so this is a sheet and not one box. Whatever the
     // export's first code is: the point is two codes, not which two.
     await search(page, '');
@@ -158,7 +139,6 @@ test.describe('daily entry', () => {
 
   test('the board sends someone here with the product already chosen', async ({ page }) => {
     await switchOn(page);
-    await setRoute(page, 'manufacture');
 
     await page.goto('/#/');
     await page.getByPlaceholder('Filter code or product…').fill(CODE);
@@ -174,7 +154,6 @@ test.describe('daily entry', () => {
   test('the sheet stays on the screen and under a thumb', async ({ page }) => {
     const width = page.viewportSize()?.width ?? 1280;
     await switchOn(page);
-    await setRoute(page, 'manufacture');
     await page.goto('/#/entry');
     await page.getByLabel('Product').selectOption(CODE);
     await trays(page).fill('10');

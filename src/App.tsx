@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Shell } from '@/app/Shell';
+import { Curing } from '@/screens/Curing';
 import { Entry } from '@/screens/Entry';
 import { Matrix } from '@/screens/Matrix';
 import { People } from '@/screens/People';
@@ -58,14 +59,7 @@ function screenFor(path: string) {
         />
       );
     case 'curing':
-      return (
-        <UnderConstruction
-          title="Curing"
-          icon="curing"
-          blurb="Batches on the cure clock."
-          steps={['Due-by-day groups', 'Move to ready, or straight to the blaster']}
-        />
-      );
+      return <Curing />;
     case 'shotblast':
       return (
         <UnderConstruction

@@ -188,11 +188,14 @@ Three modules, in that order:
 `dueToAdvance` is here and wired to nothing yet: it answers "which racks are due"
 using `readyAt`, and the curing screen is the one that will call it.
 
-## M6 — Curing and shotblast views
+## M6 — Curing and shotblast views · curing done, shotblast to go
 
 What is curing and until when, what is waiting to be blasted, and what becomes
 ready. `blastingCompletesCure` in settings decides whether blasting ends curing
-early.
+early. **Curing is in** — `/#/curing`, `docs/screens/curing.md`, and the story of
+it is under *The racks, and what came off them*, above. Shotblast is next: the
+blaster's own queue, and the partial-blast split that `parentBatchId` was waiting
+for.
 
 ## M7 — MYOB entry queue
 
@@ -656,6 +659,89 @@ including "automatic import is switched off", when the switch is on that very li
 And connect-this-device is a catch-22: the link needs accounts to exist, and the
 screen refuses to run when they do, which makes the remedy printed on the People
 screen impossible to follow.
+
+## The racks, and what came off them · done
+
+> *"That order — Daily entry first"*
+
+He picked the order, and the order was the whole design problem: Daily entry makes
+racks, and a rack is only worth having if something else can answer the question
+the floor actually asks at the end of the afternoon — **what came off the cure
+today, what is coming off tomorrow, and what can go into the next MYOB run**. That
+question is Curing, and it is the second screen built out of the seven stubs.
+
+Three modules again, in the same order as entry:
+
+- `src/core/curing.ts` — the rules, pure. What counts as being on the clock (the
+  four stages a rack can be sitting in, not the ones it has left), when it is
+  ready (`readyAt`, the same function the board uses — never the stage, because
+  blasting runs *beside* curing, not after it), which bucket it belongs in, and
+  `moveProblem`: one function that answers both "can this move" and "what do we
+  say if it cannot", so the sentence on a row is the sentence the writer would
+  have thrown.
+- `src/data/batchRepo.ts` — grew the writers. `moveBatchStage`, `writeOffBatch`,
+  `advanceDueBatches` (the sweep), `racksOnTheClock`, `readyRacks`. Each one
+  `assertCan('production.record')` first, one transaction per decision, the rule
+  checked *again* inside the transaction, and one `batch.move` ledger line with
+  the words in it: `A3 off the racks — 6 trays ready`, `A3 put back on the racks`.
+  A sweep moves what is due and refuses the rest, reporting each refusal — it
+  cannot half-do the racks and leave the log disagreeing with the floor.
+- `src/screens/Curing.tsx` — the list, in the six plain-spoken buckets (*Waits for
+  something*, *Off the racks now*, *Still on today*, *Tomorrow*, *Later this
+  week*, *Further out*), a button on what can come off and a sentence on what
+  cannot, the write-off dialog that will not close without a reason, and the
+  ready pile underneath with *Put it back*.
+
+Two decisions worth writing down, because both were tempting to get wrong:
+
+**The sweep is an offer, not a timer.** `production.autoAdvanceCuring` had been a
+setting with nothing behind it, and the obvious reading was a background job that
+quietly moves racks. It is instead the sentence above the list — *3 racks have
+come off the cure, and the oldest has sat there 3 days* — and one button that
+moves all of them, so the shop's rule is honoured by a person who is looking
+rather than by a clock nobody is watching. A shop that wants the racks left alone
+until somebody decides switches it off and the offer goes with it.
+
+**A rack that came off is not gone.** `Take it off` is a button on every due rack,
+and a wrong press used to move stock into a stage no screen listed — Ready was
+invisible until the MYOB queue exists. So the ready pile is on this screen too,
+oldest make first, with *Put it back* on each row. A mis-click now has a remedy
+on the same screen, in the same second, instead of a phone call.
+
+Refusals say what is wrong in the row's own words. The one that took the most
+correcting was the blast sentence: it first read *"still needs 6 of its trays
+through the blaster"*, which mixed a quantity in trays with a batch quantity in
+square metres for a shop that measures one product in m² and another in lineal
+metres. It now reads `A3 still has 6 to go through the blaster.` — the number is
+the batch's own, the unit is on the row beside it, and the sentence stays true for
+both.
+
+The two counts that now differ, and should. The menu's **Curing** badge counts
+racks that are curing; racks sitting in the blaster's queue are counted under
+**Shotblast**, so one rack is never in two numbers. The screen's own heading
+counts everything on the clock. The badge says 3, the screen says 4 racks, and
+the fourth is waiting for its blast.
+
+**Found on the way, and it reaches further than this screen.** Playwright keeps
+one browser profile per worker and the app installs a service worker that
+precaches the shell — so a browser test can be handed an older bundle out of the
+cache and pass while driving code that is no longer on disk. This was caught by
+screenshot, not by a red test: the screen on the photograph was an older layout
+than the one being tested. `e2e/support.ts` now unregisters the worker and drops
+the caches before every test's first real load, in a helper with a comment saying
+why. The app still installs its worker during the test; what is deliberately given
+up is serving a second load from cache, which is exactly the thing that made the
+tests lie.
+
+**And the bug the old screenshots were hiding.** The screen reads two media
+queries for touch sizing, and `useIsCompact() || useIsCoarsePointer()` short-circuits:
+once the first returns true the second hook is never called, React calls that
+"fewer hooks than expected", and it **unmounts the whole app** — a blank page in
+front of whoever narrows the window. It only happens crossing the breakpoint, so
+the phone project (which starts narrow) and the desktop project (which never
+narrows) both passed. `test/setup.ts`'s media stub can now be moved — `setMediaWidth`
+crosses the breakpoint inside a jsdom test — and `test/ui.curing.test.tsx` fails
+loudly if the hook order comes back.
 
 ## M12 — The sync loop · planned, not built
 
