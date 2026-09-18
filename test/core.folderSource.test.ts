@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { webcrypto } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { formatClock, formatDayFull } from '@/core/dates';
@@ -45,20 +45,33 @@ function file(overrides: Partial<FolderFile> = {}): FolderFile {
 const NOW = Date.parse('2026-09-18T07:00:00+08:00');
 
 describe('the sha the repository compares against', () => {
-  it('is the number git hash-object prints for the shop’s own exports', async () => {
-    // These two values came out of `git hash-object` in the repo, not out of this
-    // code. If the header or the join is wrong, the compare silently never
-    // matches — every tick republishes the same workbook — and this is the only
-    // place that would show up.
-    const cases = [
-      { path: 'test/fixtures/real/location.xlsx', sha: '24a217a7a0947470f630cfe7072e3bc04e8c91bf' },
-      { path: 'test/fixtures/real/future.xlsx', sha: '259fcd96f406f492ec25328fa6505ef512370935' },
-    ];
-    for (const { path, sha } of cases) {
-      const bytes = new Uint8Array(readFileSync(`${root}/${path}`));
-      await expect(gitBlobSha(bytes, sha1)).resolves.toBe(sha);
-    }
+  it('is the number git hash-object prints, on a file that is in the repository', async () => {
+    // 63 bytes, 58 characters: a workbook's header must carry the byte count, and
+    // this is the only fixture that can say so. The sha came out of
+    // `git hash-object test/fixtures/blob/multibyte.tsv`, not out of this code.
+    const bytes = new Uint8Array(readFileSync(`${root}/test/fixtures/blob/multibyte.tsv`));
+    expect(bytes.length).toBe(63);
+    await expect(gitBlobSha(bytes, sha1)).resolves.toBe('9aa3fbc3746842f70bb869d3e21d01ccfcb24ab4');
   });
+
+  // The real MYOB exports are not in the repository — they are the shop's numbers —
+  // so this half only runs on a machine that has them, which is every machine in
+  // the shop and no build agent. Checked on one, the values above are the same two
+  // numbers; CI proves the rule, a shop PC proves it about these files.
+  const real = [
+    { path: 'test/fixtures/real/location.xlsx', sha: '24a217a7a0947470f630cfe7072e3bc04e8c91bf' },
+    { path: 'test/fixtures/real/future.xlsx', sha: '259fcd96f406f492ec25328fa6505ef512370935' },
+  ].filter((c) => existsSync(`${root}/${c.path}`));
+
+  it.skipIf(real.length === 0)(
+    'and for the shop’s own exports, when they are on this machine',
+    async () => {
+      for (const { path, sha } of real) {
+        const bytes = new Uint8Array(readFileSync(`${root}/${path}`));
+        await expect(gitBlobSha(bytes, sha1)).resolves.toBe(sha);
+      }
+    },
+  );
 
   it('puts the byte count in the header, not the character count', () => {
     // A multibyte workbook would be the only way to get this wrong, hence the
