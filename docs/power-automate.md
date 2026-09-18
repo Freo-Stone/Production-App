@@ -18,17 +18,23 @@ Start at the top. Move down only when the one above is costing you time.
 **Add file** → **Upload files** → Commit. Two drags, thirty seconds. Nothing to
 maintain, nothing that can silently stop.
 
-**2. Power Automate mirrors them from SharePoint** (below), once MYOB writes the
-exports into a SharePoint or OneDrive folder by itself.
+**2. GitHub fetches them from OneDrive or SharePoint on a schedule**, with nothing
+switched on and no premium licence — built, at `ops/github-pull-exports.yml`, and
+walked through in `docs/onedrive-to-github.md`. It needs one read-only Microsoft app
+registration and one secret: more clicking at the start than the flow, and nothing
+afterwards that lives on a machine you own.
 
 **3. A scheduled script on the office PC** mirrors them with `git push`. No premium
 connector and no SharePoint tenant, only the folder MYOB exports into — see
 `docs/mirror-on-a-pc.md` and `ops/`. It runs as the signed-in user, so the PC has to
 be on and logged in.
 
-**4. A GitHub Action pulls them on a schedule.** Same result, no premium connector,
-but it needs an Azure app registration to read SharePoint, which is more setup than
-the flow is worth unless you already have one.
+**4. Power Automate mirrors them from SharePoint** (below), if Microsoft is where you
+would rather keep it. It needs the premium HTTP connector, and the flow is seven
+steps of expressions.
+
+Whichever of the three you pick, all of them assume the same thing: MYOB has already
+written the report into a folder somewhere. None of them can make it do that.
 
 > **Status, checked against the repository on 18/09/2026.** The *reading* half works:
 > a device that is open, online and holding a token checks every 15 minutes and imports

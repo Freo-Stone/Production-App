@@ -1,0 +1,355 @@
+# Bring the two MYOB workbooks from OneDrive or SharePoint into this repository,
+# on a schedule, with no PC switched on.
+#
+# WHAT THIS IS FOR
+#
+# The app reads stock and promised jobs out of exports/location.xlsx and
+# exports/future.xlsx. Something has to put them there. This does it: no Power
+# Automate licence, no office PC left running, one secret and four values to fill
+# in. It runs four mornings an hour and does nothing when the files have not
+# changed, so the history stays small.
+#
+# WHAT IT CANNOT DO
+#
+# It copies a workbook that is already in the cloud. MYOB has to have put the
+# report into that folder first, and MYOB does not do that on a schedule by
+# itself. Until it does, the manual routes are the real ones: drop the two files
+# into this repository under exports/, or use Data sources -> Import by hand in
+# the app.
+#
+# THE FOUR VALUES (Settings -> Secrets and variables -> Actions -> Variables)
+#
+#   ONEDRIVE_CLIENT_ID  the Application (client) ID of the app registration below
+#   ONEDRIVE_SOURCE     'onedrive' or 'sharepoint'
+#   ONEDRIVE_PATH       the folder the workbooks sit in, starting with a slash
+#   ONEDRIVE_SITE       only for SharePoint: the site hostname, or its whole URL
+#   LOCATION_FILE       the item list workbook, exactly as saved in that folder
+#   FUTURE_FILE         the sales workbook, exactly as saved in that folder
+#
+# OneDrive for Business:
+#   ONEDRIVE_SOURCE: onedrive
+#   ONEDRIVE_PATH:   /Documents/MYOB exports
+#
+# SharePoint (a folder in a document library on a site):
+#   ONEDRIVE_SOURCE: sharepoint
+#   ONEDRIVE_SITE:   freostone.sharepoint.com
+#   ONEDRIVE_PATH:   /Shared Documents/MYOB exports
+#   ... or put the whole site URL in ONEDRIVE_SITE instead of the hostname.
+#
+# THE SECRET (one, and it never leaves GitHub)
+#
+# A repository secret called ONEDRIVE_REFRESH_TOKEN, holding a Microsoft refresh
+# token. The quickest way to get one is to do the sign-in on your own screen once,
+# in a terminal on any computer. Make the app registration first (below), then:
+#
+#   curl -s -X POST https://login.microsoftonline.com/common/oauth2/v2.0/devicecode \
+#        -d 'client_id=YOUR_APP_ID' -d 'scope=Files.Read offline_access'
+#
+# It answers with a user_code and a verification_url. Open that URL, type the
+# code, sign in as the work account that can see the folder. Then:
+#
+#   curl -s -X POST https://login.microsoftonline.com/common/oauth2/v2.0/token \
+#        -d 'client_id=YOUR_APP_ID' -d 'grant_type=device_code' \
+#        -d 'code=the_device_code_from_the_first_answer'
+#
+# The answer carries "refresh_token". That string is the secret. It does not
+# expire on its own, so deleting the app registration in Azure is what takes it
+# away.
+#
+# The app registration: https://portal.azure.com -> App registrations -> New
+# registration -> any name, "Accounts in this organizational directory only" ->
+# Register -> Authentication -> add a platform "Mobile & desktop" with redirect URI
+# http://localhost -> API permissions -> add Files.Read (Delegated). Read-only, on
+# files that account can already see. If the tenant blocks device-code sign-in
+# through conditional access, any tool that can do an interactive Microsoft
+# sign-in and hand back a refresh token produces the same secret.
+#
+# CHECKING IT
+#
+# Actions -> Pull MYOB exports -> Run workflow. The run log says what it decided:
+#
+#   signed in          whose account was used. A 401 means the refresh token is
+#                      no good: expired, revoked, or from another app.
+#   Reading from drive which library the folder is being read out of.
+#   The folder holds:  what Microsoft says is in there. When a file comes back
+#                      'not found', this is the sentence that shows why - usually
+#                      a spelling or a missing 'Documents' prefix.
+#   not found          that file name is not in the folder.
+#   unchanged          Microsoft's own sha1 equals the copy already in the
+#                      repository. That is the steady state, not a failure.
+#   copied             the new commit is this run's.
+#   refused            the workbook has no row with the headings the parser needs,
+#                      so it is not the report its name says. That is the identical
+#                      test the app runs before it will read a workbook, so the two
+#                      can never disagree about what a file is. A file named one
+#                      report and holding another is a real thing that happens.
+#
+# HOW OFTEN
+#
+# Below: 04:00, 06:00, 08:00 and 10:00 Perth time. GitHub schedules are UTC, and
+# Perth is eight hours ahead. A run where nothing changed costs nothing. Do not
+# set it to every minute: every real change is a permanent commit holding a whole
+# copy of the workbook.
+name: Pull MYOB exports
+
+on:
+  schedule:
+    - cron: '0 20,22,0,2 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Copy both files even when Microsoft says nothing changed'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the values are filled in
+        env:
+          TOKEN: ${{ secrets.ONEDRIVE_REFRESH_TOKEN }}
+          CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+          SOURCE: ${{ vars.ONEDRIVE_SOURCE }}
+          FOLDER: ${{ vars.ONEDRIVE_PATH }}
+          SITE: ${{ vars.ONEDRIVE_SITE }}
+          LOCATION_FILE: ${{ vars.LOCATION_FILE }}
+          FUTURE_FILE: ${{ vars.FUTURE_FILE }}
+        run: |
+          missing=0
+          if [ -z "$TOKEN" ]; then echo "::error::No secret named ONEDRIVE_REFRESH_TOKEN."; missing=1; fi
+          if [ -z "$CLIENT_ID" ]; then echo "::error::No variable named ONEDRIVE_CLIENT_ID - the Application (client) ID of your app registration."; missing=1; fi
+          if [ -z "$FOLDER" ]; then echo "::error::No variable named ONEDRIVE_PATH - the folder, like /Documents/MYOB exports."; missing=1; fi
+          case "$SOURCE" in
+            onedrive|sharepoint) ;;
+            *) echo "::error::ONEDRIVE_SOURCE must be 'onedrive' or 'sharepoint', not '$SOURCE'."; missing=1 ;;
+          esac
+          if [ "$SOURCE" = "sharepoint" ] && [ -z "$SITE" ]; then
+            echo "::error::SharePoint needs ONEDRIVE_SITE - the site hostname, or the whole site URL."
+            missing=1
+          fi
+          if [ -z "$LOCATION_FILE" ]; then echo "::error::No variable named LOCATION_FILE - the item list workbook, as saved in the folder."; missing=1; fi
+          if [ -z "$FUTURE_FILE" ]; then echo "::error::No variable named FUTURE_FILE - the sales workbook, as saved in the folder."; missing=1; fi
+          if [ "$missing" != "0" ]; then
+            echo ""
+            echo "Settings -> Secrets and variables -> Actions, then the Variables tab. The top of this file lists every one."
+            exit 1
+          fi
+          echo "Configured: source=$SOURCE folder=$FOLDER location='$LOCATION_FILE' future='$FUTURE_FILE'"
+
+      - name: Sign in to Microsoft
+        id: signin
+        env:
+          REFRESH: ${{ secrets.ONEDRIVE_REFRESH_TOKEN }}
+          CLIENT_ID: ${{ vars.ONEDRIVE_CLIENT_ID }}
+        run: |
+          response=$(curl -sS -X POST https://login.microsoftonline.com/common/oauth2/v2.0/token \
+            --data-urlencode "client_id=$CLIENT_ID" \
+            --data-urlencode "grant_type=refresh_token" \
+            --data-urlencode "refresh_token=$REFRESH")
+          access=$(printf '%s' "$response" | python3 -c "import json,sys; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null || echo "")
+          if [ -z "$access" ]; then
+            echo "::error::Microsoft would not swap that refresh token for a session. It says: $(printf '%s' "$response" | head -c 400)"
+            exit 1
+          fi
+          echo "::add-mask::$access"
+          echo "token=$access" >> "$GITHUB_OUTPUT"
+          echo "Signed in (a session token lasts about an hour; the refresh token does not expire on its own)."
+
+      - name: Find the library that holds the folder
+        id: drive
+        env:
+          TOKEN: ${{ steps.signin.outputs.token }}
+          SOURCE: ${{ vars.ONEDRIVE_SOURCE }}
+          SITE: ${{ vars.ONEDRIVE_SITE }}
+        run: |
+          if [ "$SOURCE" = "sharepoint" ]; then
+            host=$(printf '%s' "$SITE" | sed -E 's#^https?://##; s#/$##; s#/.*$##')
+            if [ -z "$host" ]; then echo "::error::ONEDRIVE_SITE has no hostname in it: '$SITE'"; exit 1; fi
+            root=$(curl -sS -H "Authorization: Bearer $TOKEN" "https://graph.microsoft.com/v1.0/sites/$host")
+            name=$(printf '%s' "$root" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('displayName') or d.get('error',{}).get('message','no answer'))" 2>/dev/null || echo 'no answer')
+            echo "Site: $name"
+            drive=$(printf '%s' "$root" | python3 -c "import json,sys; print(json.load(sys.stdin).get('driveId',''))" 2>/dev/null || echo "")
+            if [ -z "$drive" ]; then
+              echo "::error::Could not read that site. It answers: $(printf '%s' "$root" | head -c 400)"
+              echo "If it says itemNotFound, put the whole site URL in ONEDRIVE_SITE, or the hostname exactly as the browser shows it."
+              exit 1
+            fi
+          else
+            answer=$(curl -sS -H "Authorization: Bearer $TOKEN" "https://graph.microsoft.com/v1.0/me/drive")
+            drive=$(printf '%s' "$answer" | python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+            if [ -z "$drive" ]; then
+              echo "::error::Could not read that OneDrive. It answers: $(printf '%s' "$answer" | head -c 400)"
+              exit 1
+            fi
+          fi
+          echo "drive=$drive" >> "$GITHUB_OUTPUT"
+          echo "Reading from drive $drive"
+
+      - name: What is in the folder
+        env:
+          TOKEN: ${{ steps.signin.outputs.token }}
+          DRIVE: ${{ steps.drive.outputs.drive }}
+          FOLDER: ${{ vars.ONEDRIVE_PATH }}
+        run: |
+          enc=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe='/'))" "$FOLDER")
+          answer=$(curl -sS -H "Authorization: Bearer $TOKEN" "https://graph.microsoft.com/v1.0/drives/$DRIVE/root:$enc")
+          printf '%s' "$answer" | python3 - <<'PY'
+          import json, sys
+
+          d = json.load(sys.stdin)
+          if 'error' in d:
+              print('Microsoft says:', d['error'].get('message', ''))
+              print()
+              print('A wrong folder reads exactly like this. The path starts with a slash, matches')
+              print('the folder spelling, and for OneDrive starts /Documents/.')
+              sys.exit(0)
+          children = d.get('children', [])
+          print(f'The folder holds {len(children)} things:')
+          for item in children:
+              kind = 'folder' if 'folder' in item else 'file '
+              print(f"  {kind}  {item.get('name')}  {item.get('size', '')}")
+          PY
+
+      - name: Copy them in if they changed
+        id: copy
+        env:
+          TOKEN: ${{ steps.signin.outputs.token }}
+          DRIVE: ${{ steps.drive.outputs.drive }}
+          FOLDER: ${{ vars.ONEDRIVE_PATH }}
+          LOCATION_FILE: ${{ vars.LOCATION_FILE }}
+          FUTURE_FILE: ${{ vars.FUTURE_FILE }}
+          FORCE: ${{ github.event.inputs.force == 'true' && 'yes' || 'no' }}
+          # The same test the app applies before it will read a workbook: a row
+          # holding these column headings. From ITEM_REQUIRED_HEADERS in
+          # src/lib/myob/itemListSummary.ts and SALES_REQUIRED_HEADERS in
+          # src/lib/myob/salesItemDetail.ts. Change one, change the other, or the
+          # mirror and the app disagree about what a file is - which is exactly the
+          # kind of quiet difference this app does not have.
+          HEADERS_location: Item No.|Units On Hand
+          HEADERS_future: Name|ID No.|Date|Quantity|Promised Date
+        run: |
+          copy_one() {
+            name="$1"; dest="$2"; headers="$3"; key="$4"
+            enc=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe='/'))" "$FOLDER/$name")
+            item=$(curl -sS -H "Authorization: Bearer $TOKEN" "https://graph.microsoft.com/v1.0/drives/$DRIVE/root:$enc")
+            id=$(printf '%s' "$item" | python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+            if [ -z "$id" ]; then
+              why=$(printf '%s' "$item" | python3 -c "import json,sys; print(json.load(sys.stdin).get('error',{}).get('message','no answer at all'))" 2>/dev/null || echo 'no answer at all')
+              echo "$name: not found. Microsoft says: $why"
+              return 0
+            fi
+            sha=$(printf '%s' "$item" | python3 -c "import json,sys; print(json.load(sys.stdin).get('file',{}).get('hashes',{}).get('sha1',''))" 2>/dev/null || echo "")
+            size=$(printf '%s' "$item" | python3 -c "import json,sys; print(json.load(sys.stdin).get('size','?'))" 2>/dev/null || echo '?')
+            when=$(printf '%s' "$item" | python3 -c "import json,sys; print(json.load(sys.stdin).get('lastModifiedDateTime','?'))" 2>/dev/null || echo '?')
+            if [ "$FORCE" != "yes" ] && [ -n "$sha" ] && [ -f "$dest" ] && [ "$(sha1sum "$dest" | cut -d' ' -f1)" = "$sha" ]; then
+              echo "$name: unchanged. Same file as the one already in exports/ (last written by Microsoft $when)."
+              return 0
+            fi
+            if [ "$FORCE" = "yes" ]; then echo "$name: copying because the run was forced."; fi
+            enc_id=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$id")
+            code=$(curl -sS -o /tmp/payload -w '%{http_code}' -L -H "Authorization: Bearer $TOKEN" \
+              "https://graph.microsoft.com/v1.0/drives/$DRIVE/items/$enc_id/content")
+            if [ "$code" != "200" ]; then
+              echo "$name: could not download it (HTTP $code). Body: $(head -c 200 /tmp/payload)"
+              return 0
+            fi
+
+            check=$(python3 - "$headers" <<'PY'
+          # Is this the report its name says it is? Same rule as the app: a row
+          # holding the column headings the parser needs. MYOB puts its banner text
+          # anywhere it likes and splits it across cells, so the headings are the
+          # only dependable test - and the one the app itself will apply later.
+          import re, sys, zipfile
+          from xml.etree import ElementTree as ET
+
+          NS = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
+          want = [h.strip().lower() for h in sys.argv[1].split('|') if h.strip()]
+
+
+          def cells_of(row, strings):
+              out = []
+              for c in row.findall(NS + 'c'):
+                  kind = c.get('t')
+                  value = c.find(NS + 'v')
+                  inline = c.find(NS + 'is')
+                  if kind == 's' and value is not None:
+                      n = int(value.text or 0)
+                      out.append(strings[n] if n < len(strings) else '')
+                  elif kind == 'inlineStr' and inline is not None:
+                      out.append(''.join(t.text or '' for t in inline.iter(NS + 't')))
+                  elif value is not None:
+                      out.append(value.text or '')
+                  else:
+                      out.append('')
+              return out
+
+
+          try:
+              book = zipfile.ZipFile('/tmp/payload')
+          except Exception:
+              print('unreadable')
+              sys.exit(0)
+          strings = []
+          try:
+              for si in ET.fromstring(book.read('xl/sharedStrings.xml')).findall(NS + 'si'):
+                  strings.append(''.join(t.text or '' for t in si.iter(NS + 't')))
+          except KeyError:
+              pass
+          sheets = sorted(n for n in book.namelist() if re.match(r'xl/worksheets/sheet\d+\.xml$', n))
+          if not sheets:
+              print('unreadable')
+              sys.exit(0)
+          for row in ET.fromstring(book.read(sheets[0])).iter(NS + 'row'):
+              got = [re.sub(r'\s+', ' ', c).strip().lower() for c in cells_of(row, strings)]
+              if all(h in got for h in want):
+                  print('found')
+                  sys.exit(0)
+          print('missing:' + ' | '.join(want))
+          PY
+          )
+            case "$check" in
+              found) ;;
+              unreadable)
+                echo "$name: refused - that is not a readable Excel workbook. Nothing published."
+                return 0 ;;
+              missing:*)
+                echo "$name: refused - no row with the headings ${check#missing:}, so it is not the report its name says."
+                echo "That is the same test the app applies, so it would refuse this file too. Open it and look at the column headings."
+                return 0 ;;
+              *)
+                echo "$name: could not tell what report it is - the title is not where MYOB usually puts it. Copying it anyway. Open it and check." ;;
+            esac
+
+            mkdir -p "$(dirname "$dest")"
+            mv /tmp/payload "$dest"
+            echo "changed=yes" >> "$GITHUB_OUTPUT"
+            echo "$name: copied to $dest ($size bytes, last written by Microsoft $when)."
+          }
+
+          copy_one "$LOCATION_FILE" exports/location.xlsx "$HEADERS_location" location
+          copy_one "$FUTURE_FILE" exports/future.xlsx "$HEADERS_future" future
+
+      - name: Commit what arrived
+        if: steps.copy.outputs.changed == 'yes'
+        run: |
+          git config user.name "exports mirror"
+          git config user.email "bot@freostone.local"
+          git add exports
+          if git diff --cached --quiet; then
+            echo "Nothing actually landed, so no commit."
+            exit 0
+          fi
+          files=$(git diff --cached --name-only | paste -sd' ' -)
+          git commit -m "exports: $files @ $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
+          echo "Pushed. Any device that is open and holding a token reads it within its own check interval."
+
+      - name: Nothing to do
+        if: steps.copy.outputs.changed != 'yes'
+        run: echo "No new workbook to publish. The repository is as current as the folder."

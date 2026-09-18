@@ -76,6 +76,7 @@ reread, so no device silently overwrites another. `docs/sync.md` walks each part
 | `accounts.md` | Logins, the three roles, which devices are allowed, and honestly what a passcode in an app with no server is worth. |
 | `power-automate.md` | Getting the MYOB exports into the repository. |
 | `mirror-on-a-pc.md` | The same job without Power Automate: two scripts and Windows Task Scheduler on the office PC. |
+| `onedrive-to-github.md` | GitHub fetches the exports from OneDrive or SharePoint itself, on a schedule, with no PC switched on. |
 | `exports.md` | How the app pulls those exports back out and imports them on its own, and what that cannot do without a server. |
 | `brand.md` | The shop's own logo, the four colours measured out of it, and everything the build draws from them. |
 | `screens/` | What each screen is for, column by column, and who owns which field. |
