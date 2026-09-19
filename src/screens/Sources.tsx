@@ -368,7 +368,7 @@ export function Sources() {
       {/* ── Tables ─────────────────────────────────────────────────────────── */}
       <Card
         className="flex min-h-0 flex-1 flex-col"
-        bodyClassName="flex min-h-0 flex-1 flex-col"
+        bodyClassName="flex min-h-0 flex-1 flex-col overflow-y-auto"
         padded={false}
         title={
           <Segmented

@@ -226,6 +226,66 @@ test.describe('the table gets the screen', () => {
     }
   });
 
+  test('a card that runs out of room scrolls instead of hiding rows', async ({ page }) => {
+    // The state that broke it: not a small window, but the person opening the
+    // hand-import panel. The card's furniture then needs more than the space it was
+    // given, `.card { overflow: hidden }` hides the rest of the grid, and no media
+    // query can see a state change. Every layout spec above measures the panel
+    // closed, which is why the defect survived the whole viewport loop.
+    await openApp(page, '/sources');
+    await importBoth(page);
+    await page.getByRole('button', { name: /Import by hand/ }).click();
+
+    for (const size of [
+      { width: 1366, height: 768 },
+      { width: 1366, height: 700 },
+      { width: 844, height: 600 },
+    ]) {
+      await page.setViewportSize(size);
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const grid = document.querySelector('[data-density]');
+              if (!grid) return 'no grid on screen';
+              const card = grid.closest('section');
+              if (!card) return 'the grid is not inside a card';
+
+              // Nothing may be hidden by the card itself. This needs no scrolling,
+              // so it cannot be satisfied by a scroll that goes nowhere.
+              const clipped = Math.round(card.scrollHeight - card.clientHeight);
+              if (clipped > 2) return `the card is clipping ${String(clipped)}px of its own table`;
+
+              // Walk out to the nearest element that can really scroll, and prove it
+              // is one: `overflow: hidden` also scrolls when a script asks it to, so
+              // a probe that scrolls the clipping element and looks for the row
+              // reports REACHED on the broken build. That trap cost one investigation.
+              let scroller = grid as HTMLElement | null;
+              while (scroller && scroller !== document.body) {
+                const oy = getComputedStyle(scroller).overflowY;
+                if (/(auto|scroll)/.test(oy) && scroller.scrollHeight > scroller.clientHeight + 2) break;
+                scroller = scroller.parentElement;
+              }
+              if (!scroller || scroller === document.body) return 'nothing can scroll to the last row';
+              const oy = getComputedStyle(scroller).overflowY;
+              if (!/(auto|scroll)/.test(oy)) return `what we scrolled has overflow-y: ${oy}`;
+
+              const rows = document.querySelectorAll('[data-row-index]');
+              const last = rows[rows.length - 1] as HTMLElement | undefined;
+              if (!last) return 'no rows rendered to reach';
+              scroller.scrollTop = scroller.scrollHeight;
+              const r = last.getBoundingClientRect();
+              if (r.bottom <= 0 || r.top >= window.innerHeight) {
+                return `the last row is at ${String(Math.round(r.top))}..${String(Math.round(r.bottom))} of ${String(window.innerHeight)}`;
+              }
+              return 'ok';
+            }),
+          { timeout: 10_000, message: `no row is hidden at ${String(size.width)}x${String(size.height)}` },
+        )
+        .toBe('ok');
+    }
+  });
+
   test('a closed panel keeps its content off the screen', async ({ page }) => {
     await openApp(page, '/sources');
     const panel = page.getByRole('button', { name: /Import by hand/ });
