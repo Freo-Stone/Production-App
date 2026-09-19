@@ -1432,3 +1432,34 @@ room on a short window, or the page to scroll when the furniture does not fit. A
 real work in the DataTable subtree or the screen's toolbar, and all three need the DOM read
 at 844x390 first. Committed state restored after this attempt; `e2e/layout.spec.ts` green on
 all three projects without the sideways entry in the loop.
+
+## The sideways-phone clip is fixed — page flow under a height gate (`be09ba7`)
+
+Fixed in one gated block in `src/styles/theme.css`, not in five screens: under
+`@media (max-height: 560px)` the screen root becomes `height: auto; min-height: 100%`, the
+card's minimum returns to its content, and the grid wrapper takes a **definite** `height:
+240px` with `flex: 0 0 auto`. The definite height is the whole trick and the reason the two
+earlier attempts failed — a grid is a scroll box only while every height above it is
+definite, so an indefinite chain hands the card the virtualised spacer's ~91,000px. Measured
+at 844x390: clip 0 on Products and Data sources, and the last row inside the window (Sources
+row 2,690 at 309..343 of 390; Products row 127 at 250..284). `{ width: 844, height: 390 }`
+and `667x375` are back in the viewport loop in `e2e/layout.spec.ts`, so the clip assertion in
+`fit()` finally has a short window to run against — it had none, which is how the regression
+shipped.
+
+Two disclosures, because both look like cheating if left unstated. (1) **560px is a
+judgement, not a measurement**: broken at 390 and 400 tall, healthy at 768 and up, and the
+band between 560 and 768 has never been measured. Close it by measuring 640x600 and 640x480.
+It is gated on height and never width — 844x390 is wider than a portrait phone and still
+broken, while 1366x768 under the same rules loses 223px of table. (2) **`fit()` was
+reordered**, not loosened: it applied "runs past the bottom" before deciding whether the page
+can scroll, so a correct page-flow layout failed at 208px. Scrolling pages are now judged
+where the scroll ends — the page must reach its own bottom and the content must finish at the
+clearance — which is stricter than what it replaced; for a page that cannot scroll the same
+short/past rules still run.
+
+Design still worth doing properly when there is room: pin the scroll box
+(`position: absolute; inset: 0`) inside a relatively-positioned wrapper with a definite
+basis, so the spacer can never inflate an ancestor in any regime. That removes the class of
+bug instead of this instance, but it moves the sticky header, the horizontal scrollbar and
+the resize handles, so it has to be gated like the DataTable change it is.
