@@ -262,8 +262,8 @@ export function FutureJobs() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <Card
-        className="flex min-h-0 flex-1 flex-col"
-        bodyClassName="flex min-h-0 flex-1 flex-col"
+        className="flex min-h-0 flex-1 flex-col lg:min-h-0 lg:flex-none lg:shrink-0"
+        bodyClassName="flex min-h-0 flex-1 flex-col lg:min-h-0 lg:flex-none"
         title="The order book"
         subtitle={head()}
         actions={
@@ -538,7 +538,7 @@ export function FutureJobs() {
 function Figure({ label, value, unit, hint }: { label: string; value: number; unit: ProductUnit; hint?: string }) {
   return (
     <li className={cx('flex flex-col')}>
-      <span className="text-[0.7rem] font-700 uppercase tracking-wide text-ink3">{label}</span>
+      <span className="text-eyebrow font-700 uppercase tracking-wide text-ink3">{label}</span>
       <span className="text-base font-600 tabular-nums">{formatQty(value, unit)}</span>
       {hint ? <span className="text-xs text-ink3">{hint}</span> : null}
     </li>

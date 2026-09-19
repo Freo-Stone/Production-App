@@ -77,7 +77,7 @@ export function ViewToolbar({
         >
           {() => (
           <div className="flex flex-col gap-1">
-            <p className="pb-1 text-[0.7rem] font-700 uppercase tracking-wide text-ink3">
+            <p className="pb-1 text-eyebrow font-700 uppercase tracking-wide text-ink3">
               Showing {visibleCount} of {columns.length}
             </p>
             {columns.map((col) => {

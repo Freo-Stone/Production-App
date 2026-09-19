@@ -666,7 +666,7 @@ function Fact({
 }): ReactElement {
   return (
     <div>
-      <dt className="text-[0.68rem] tracking-wide text-ink3 uppercase">{label}</dt>
+      <dt className="text-eyebrow tracking-wide text-ink3 uppercase">{label}</dt>
       <dd
         className={cx(
           'num text-sm',

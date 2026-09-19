@@ -17,7 +17,7 @@ function isolate(e: { stopPropagation(): void; preventDefault?: () => void }): v
 
 const FILL =
   'h-6 w-full rounded-[var(--radius-sm)] border border-transparent bg-transparent px-1 ' +
-  'text-[0.82rem] leading-none hover:border-line hover:bg-surface3 focus:border-accent focus:bg-surface';
+  'text-ui leading-none hover:border-line hover:bg-surface3 focus:border-accent focus:bg-surface';
 
 export function CellNumber({
   value,

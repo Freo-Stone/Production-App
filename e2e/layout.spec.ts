@@ -96,6 +96,68 @@ async function fit(page: Page): Promise<string> {
   });
 }
 
+/**
+ * Does the grid own the room that is left, or is something else claiming it?
+ *
+ * `fit()` measures the bottom of `main`'s last element, which fills the window even
+ * when the table inside it is a 450px island: on the making plan and the order book a
+ * furniture card and the grid wrapper were siblings both asking for `flex-1`, so the
+ * page split in half and the grid got 448px of a 1020px region. Nothing below the
+ * table is guessed at here — everything painted under it is measured and added up.
+ */
+async function room(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const main = document.querySelector('main');
+    const grid = document.querySelector('[data-density]');
+    if (!main || !grid) return 'no grid to measure';
+    const wrapper = grid.closest('.min-h-\\[240px\\]') ?? grid;
+    const w = wrapper.getBoundingClientRect();
+    if (w.height < 1) return 'the grid box has no height';
+
+    // Everything painted below the grid box, whatever it is: a footnote, a drawer,
+    // another card. Their real heights, so no allowance has to be typed for them.
+    let lowest = w.bottom;
+    for (const el of Array.from(main.querySelectorAll('*'))) {
+      const r = (el as HTMLElement).getBoundingClientRect();
+      if (r.height > 0 && r.top >= w.bottom - 1 && r.bottom > lowest) lowest = r.bottom;
+    }
+    const pad = Math.round(parseFloat(getComputedStyle(main).paddingBottom));
+    const nav = document.querySelector('nav[class*="fixed"]');
+    const navH = nav ? Math.round(nav.getBoundingClientRect().height) : 0;
+    const want = window.innerWidth < 640 ? Math.max(pad, navH) : pad;
+    const spare = Math.round(window.innerHeight - lowest - want);
+    // One line of footnote is a legitimate thing to have under a table; a twelfth of
+    // the window is a card that has eaten the space the rows were meant to have.
+    if (spare > window.innerHeight * 0.12) {
+      return `${String(spare)}px of the window is below the grid with nothing in it`;
+    }
+
+    // And nothing above it may be stretched. A card that is taller than its own
+    // content is a card that was handed space it had nothing to put in — the exact
+    // shape of the bug this screen had: the furniture card and the grid wrapper were
+    // siblings both asking for `flex-1`, so the page split in half, the card filled
+    // 450px with 206px of furniture, and the grid got the other half. A card holding
+    // the grid is exempt, because its content is a scroll box by design.
+    for (const card of Array.from(main.querySelectorAll('section.card'))) {
+      if (card.querySelector('[data-density]')) continue;
+      const box = card.getBoundingClientRect();
+      // `scrollHeight` is no use here: a stretched flex child reports the height it
+      // was handed, so a card with an empty belly looks exactly like a full one.
+      // What cannot lie is where the last thing actually painted inside it ends.
+      let lowest = box.top;
+      for (const el of Array.from(card.querySelectorAll('*'))) {
+        const r = el.getBoundingClientRect();
+        if (r.height > 0 && r.bottom > lowest) lowest = r.bottom;
+      }
+      const slack = Math.round(box.bottom - lowest);
+      if (slack > Math.max(8, window.innerHeight * 0.05)) {
+        return `a card above the grid is holding ${String(slack)}px of empty space`;
+      }
+    }
+    return 'ok';
+  });
+}
+
 const topCell = (page: Page) => scroller(page).locator('[role="row"]').nth(1).locator('.dt-cell').first();
 
 test.describe('the table gets the screen', () => {
@@ -223,6 +285,31 @@ test.describe('the table gets the screen', () => {
       expect(height, `the grid gets usable height at ${String(size.width)}x${String(size.height)}`).toBeGreaterThan(
         size.height / 5,
       );
+    }
+  });
+
+  test('every long-list screen gives its grid the room that is left', async ({ page }) => {
+    // Five screens own a table, and each one arranges its own furniture above it.
+    // This is the check that the shared layout is actually shared: the same rule has
+    // to hold on all of them, at the sizes the shop's monitors really are.
+    await openApp(page, '/sources');
+    await importBoth(page);
+
+    for (const route of ['/products', '/matrix', '/schedule', '/jobs', '/sources']) {
+      for (const size of [
+        { width: 1920, height: 1080 },
+        { width: 1366, height: 768 },
+        { width: 1536, height: 864 },
+      ]) {
+        await page.setViewportSize(size);
+        await page.goto(`${page.url().split('#')[0]}#${route}`);
+        await expect
+          .poll(() => room(page), {
+            timeout: 10_000,
+            message: `${route} gives its grid the room at ${String(size.width)}x${String(size.height)}`,
+          })
+          .toBe('ok');
+      }
     }
   });
 

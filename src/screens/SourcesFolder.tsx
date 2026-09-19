@@ -279,7 +279,7 @@ export function FolderWatchLine({
               return (
                 <span key={kind} data-folder-kind={kind} className="flex flex-col gap-1.5 rounded-lg border border-line bg-panel2/40 p-2.5">
                   <span className="flex items-center justify-between gap-2">
-                    <span className="text-[0.72rem] font-650 uppercase tracking-wide text-ink3">{KIND_TITLE[kind]}</span>
+                    <span className="text-eyebrow font-650 uppercase tracking-wide text-ink3">{KIND_TITLE[kind]}</span>
                     <Chip tone={chip2.tone}>{chip2.label}</Chip>
                   </span>
                   <span className="text-xs text-ink2">

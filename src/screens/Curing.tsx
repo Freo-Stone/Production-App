@@ -204,7 +204,7 @@ export function Curing() {
               <div className="divide-y divide-line">
                 {shown.map((group) => (
                   <section key={group.bucket} data-curing-bucket={group.bucket}>
-                    <h3 className="bg-panel2/50 px-3 py-1.5 text-[0.7rem] font-700 uppercase tracking-wide text-ink3">
+                    <h3 className="bg-panel2/50 px-3 py-1.5 text-eyebrow font-700 uppercase tracking-wide text-ink3">
                       {group.label}
                       <span className="ml-2 font-500 normal-case">
                         {group.rows.length} rack

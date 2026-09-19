@@ -1523,3 +1523,52 @@ make a browser test pass. In the browser specs the imports no longer imply a pla
 `markAllCurrent(page)` moved from `matrix.spec.ts` into `e2e/support.ts` and is called by the
 schedule and shots specs after `importBoth`, because a spec that imports and then expects a plan
 is a spec quietly asserting on an empty screen.
+
+## The visual pass: a card was eating half the window (wide screens), and a type scale that did not exist
+
+Asked to "go through each page and see what you can do to make the UI better. check spacing and
+make it overall more visually appealing", the first step was to look at the thing: every screen
+was photographed at 1920x1080 and 390x844 with the real fixtures, and four read-only reviews went
+over the twelve screens. Two of their findings were measured, not eyeballed, and both are fixed.
+
+**A card holding 244px of nothing.** On the making plan and the order book the furniture card and
+the grid wrapper are *siblings* in the page column, and both asked for `flex-1`, so the window
+split 50/50: the card stretched to 450px around 206px of content and the table got 448px of a
+1020px region. Fixed on wide screens by `lg:flex-none lg:shrink-0` on the furniture card — the
+card now takes 208px and the grid 691px, a 54% taller table on the two planning screens, which is
+the owner's original "unused space at the bottom of some pages" in its real shape. **Narrow
+screens are deliberately unchanged**, and that is a compromise, not a result: on a 390px phone
+this same furniture is 421px tall by itself (four rows of 44px filter tiles), so letting it size
+itself pushed the grid under the fixed tab bar where a row cannot be tapped — three
+`schedule.spec.ts` phone tests timed out on a row click and say so. The phone fix is to collapse
+those filters into one Disclosure/Popover, which is the biggest phone win on the list and needs
+its own measured pass.
+
+`e2e/layout.spec.ts` gained `room()`, which measures what is painted below the grid *and* what is
+painted inside every card above it, and a test that runs it on all five table screens at three
+desktop widths. It has teeth: with the class put back it fails with "a card above the grid is
+holding 244px of empty space". Its first version did not — it measured `scrollHeight`, and a
+stretched flex child reports the height it was handed, so a card with an empty belly looks exactly
+like a full one. Only what is painted tells the truth.
+
+**Sizes had no scale, so eight one-offs grew up doing four jobs.** `@theme` gained
+`--text-eyebrow` / `--text-ui` / `--text-title`, and 25 lines moved off `text-[0.68rem]`-style
+values onto them: uppercase eyebrows (0.68/0.7/0.72), mono detail (0.68/0.78 → `text-xs`), and —
+the visible one — card, drawer and section titles, which were 0.92rem in one place and 0.95rem in
+another for the same job. Sign-in is untouched on purpose.
+
+### Still on the list from the four reviews, ranked by the reviewers' value-over-risk
+Shared: selected state is nearly invisible (`Segmented` active and `Button active` are a hue and a
+1px border — add a fill); the toaster covers 30% of a phone screen and its dismiss target is 26px
+against the app's own 44px rule; toolbars are `px-2` against the card's `px-3`, so a filter input
+starts 4px left of the card title; `bg-panel2/*` is used 9 times and `--color-panel2` does not
+exist, so those group strips paint nothing; `.dt-totals` reuses `.dt-cell`'s `overflow:hidden` and
+clips the totals ("525,509..."); `.dt-headcell` is smaller and dimmer than its own data; Matrix
+prints "m2" six times a row; number inputs have no `appearance-none`, so every editable cell shows
+spinner arrows; `Tile` right-aligns text, wrapping the repo name to four lines on a phone; help
+prose has no measure and runs 1,265px wide; `Disclosure` headers truncate both title and detail on
+390; `NumberInput`'s `w-full` beats the caller's `w-24` and its unit paints outside the border.
+Per-screen, the biggest: Matrix's legend chips are the loudest pixels on the screen while the
+actual short signal is 5% red; Matrix draws a dot in every empty day cell; People's Actions column
+is entirely off-screen on the phone, so a device cannot be renamed or removed; the age/online chip
+is `hidden sm:block`, so a phone gets no freshness signal at all.

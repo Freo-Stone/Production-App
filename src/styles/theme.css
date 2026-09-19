@@ -13,6 +13,15 @@
   /* Numeric weights. Tailwind only ships named weights (semibold, bold), but a
      dense data UI wants 550/650 in-between steps; naming them here makes
      `font-550` / `font-650` real utilities instead of silently-dead classes. */
+  /* Type steps. Sizes had no scale, so eight one-off values (0.68, 0.7, 0.72,
+     0.78, 0.82, 0.9, 0.92, 0.95rem) crept in doing the same four jobs — an
+     uppercase eyebrow, a card title, a control, a line of detail. The steps are
+     named for the job, so a screen asks for "a title" instead of remembering a
+     number. `body` and `xs`/`sm` are Tailwind's and stay. */
+  --text-eyebrow: 0.7rem;
+  --text-ui: 0.82rem;
+  --text-title: 0.94rem;
+
   --font-weight-550: 550;
   --font-weight-600: 600;
   --font-weight-650: 650;

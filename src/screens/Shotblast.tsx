@@ -196,7 +196,7 @@ export function Shotblast() {
         <Card padded={false} title="Waiting for the blaster" subtitle="The ones the machine still owes, most overdue first.">
           {lists.cureFinished.length > 0 ? (
             <section data-blast-section="cure-done">
-              <h3 className="bg-panel2/50 px-3 py-1.5 text-[0.7rem] font-700 uppercase tracking-wide text-ink3">
+              <h3 className="bg-panel2/50 px-3 py-1.5 text-eyebrow font-700 uppercase tracking-wide text-ink3">
                 Cure is done — only the blast is left
               </h3>
               <ul className="divide-y divide-line">
@@ -220,7 +220,7 @@ export function Shotblast() {
           ) : null}
           {lists.stillCuring.length > 0 ? (
             <section data-blast-section="still-curing">
-              <h3 className="bg-panel2/50 px-3 py-1.5 text-[0.7rem] font-700 uppercase tracking-wide text-ink3">
+              <h3 className="bg-panel2/50 px-3 py-1.5 text-eyebrow font-700 uppercase tracking-wide text-ink3">
                 Still curing — it can be blasted beside the cure
               </h3>
               <ul className="divide-y divide-line">

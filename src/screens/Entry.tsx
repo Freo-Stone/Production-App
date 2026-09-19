@@ -189,7 +189,7 @@ export function Entry() {
               aria-label="The day before"
               onClick={() => setDay(addDays(day, -1))}
             />
-            <span className="min-w-[13ch] text-center text-[0.82rem] font-650" data-entry-day>
+            <span className="min-w-[13ch] text-center text-ui font-650" data-entry-day>
               {formatDayFull(day)}
             </span>
             <Button

@@ -369,7 +369,7 @@ function DeviceList({
               <tr key={device.id} className="border-b border-line/60 last:border-0">
                 <td className="py-2 pr-3">
                   <span className="font-650">{device.label}</span>
-                  <span className="block font-mono text-[0.68rem] text-ink3">{device.id}</span>
+                  <span className="block font-mono text-xs text-ink3">{device.id}</span>
                 </td>
                 <td className="py-2 pr-3">{device.userId ? (nameOf.get(device.userId) ?? 'an account since deleted') : 'nobody yet'}</td>
                 <td className="py-2 pr-3 text-ink3">{lastSeen(device.lastSeenAt)}</td>

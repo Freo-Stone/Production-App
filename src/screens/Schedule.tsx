@@ -298,8 +298,8 @@ export function Schedule() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <Card
-        className="flex min-h-0 flex-1 flex-col"
-        bodyClassName="flex min-h-0 flex-1 flex-col"
+        className="flex min-h-0 flex-1 flex-col lg:min-h-0 lg:flex-none lg:shrink-0"
+        bodyClassName="flex min-h-0 flex-1 flex-col lg:min-h-0 lg:flex-none"
         title="The making plan"
         subtitle={head()}
         actions={

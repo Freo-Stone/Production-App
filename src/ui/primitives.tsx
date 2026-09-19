@@ -173,7 +173,7 @@ export function Card({
         // itself came out as "The…". The chips drop to a second line instead.
         <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface2 px-3 py-2">
           <div className="min-w-[10rem] flex-1">
-            {title ? <h2 className="truncate text-[0.92rem] font-650">{title}</h2> : null}
+            {title ? <h2 className="truncate text-title font-650">{title}</h2> : null}
             {subtitle ? <p className="truncate text-xs text-ink3">{subtitle}</p> : null}
           </div>
           {/* Not `shrink-0`: three buttons in a card header are wider than a phone,
@@ -211,7 +211,7 @@ export function Tile({
         onClick && 'cursor-pointer hover:border-linestrong',
       )}
     >
-      <span className="text-[0.7rem] font-600 uppercase tracking-wide text-ink3">{label}</span>
+      <span className="text-eyebrow font-600 uppercase tracking-wide text-ink3">{label}</span>
       <span className={cx('num text-lg font-700 leading-tight', TONE_TEXT[tone])}>{value}</span>
       {sub ? <span className="truncate text-xs text-ink3">{sub}</span> : null}
     </Wrapper>
@@ -234,7 +234,7 @@ export function EmptyState({
       <span className="rounded-full border border-line bg-surface2 p-3 text-ink3">
         <Icon name={icon} size={22} />
       </span>
-      <h3 className="text-[0.95rem] font-650">{title}</h3>
+      <h3 className="text-title font-650">{title}</h3>
       {body ? <p className="max-w-md text-sm text-ink2">{body}</p> : null}
       {action ? <div className="mt-1">{action}</div> : null}
     </div>
@@ -291,7 +291,7 @@ export function Field({
   return (
     <div className={cx('flex flex-col gap-1', className)}>
       <label className="flex flex-col gap-1" htmlFor={htmlFor}>
-        <span className="text-[0.72rem] font-650 uppercase tracking-wide text-ink3">{label}</span>
+        <span className="text-eyebrow font-650 uppercase tracking-wide text-ink3">{label}</span>
         <FieldDescription.Provider value={description ? descriptionId : undefined}>
           {children}
         </FieldDescription.Provider>
@@ -451,7 +451,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.value)}
           className={cx(
             'flex-1 rounded-[5px] font-600 whitespace-nowrap transition-colors',
-            size === 'sm' ? 'px-2 py-0.5 text-[0.75rem]' : 'px-2.5 py-1 text-[0.82rem]',
+            size === 'sm' ? 'px-2 py-0.5 text-[0.75rem]' : 'px-2.5 py-1 text-ui',
             value === o.value ? 'bg-surface3 text-ink' : 'text-ink3 hover:text-ink2',
           )}
         >
@@ -660,7 +660,7 @@ export function Modal({
                 {/* Not truncated: a dialog title is the question being asked, and
                     "How much of 2026-09-18-01 came…" on a phone stops being a
                     question. Two lines of heading cost nothing; a clipped one does. */}
-                <h2 className="text-[0.95rem] font-650">{title}</h2>
+                <h2 className="text-title font-650">{title}</h2>
                 {subtitle ? <p className="text-xs text-ink3">{subtitle}</p> : null}
               </div>
               <IconButton icon="close" label="Close" onClick={onClose} />
@@ -822,7 +822,7 @@ export function Disclosure({
         className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-surface2"
       >
         <Icon name={isOpen ? 'chevronUp' : 'chevronDown'} size={14} className="shrink-0 text-ink3" />
-        <span className="min-w-0 truncate text-[0.92rem] font-650">{title}</span>
+        <span className="min-w-0 truncate text-title font-650">{title}</span>
         {detail ? <span className="ml-auto min-w-0 truncate pl-2 text-xs text-ink3">{detail}</span> : null}
       </button>
       {isOpen ? (

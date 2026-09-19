@@ -38,7 +38,7 @@ export function Brand({ compact = false }: { compact?: boolean }): React.ReactEl
           that this change is about. What is left to say is which of the shop's tools
           this is. */}
       <img src={logoUrl} alt="Freo Stone Paving" width={44} height={44} className="size-11 shrink-0" />
-      <span className="min-w-0 truncate text-[0.68rem] leading-tight text-ink3">Production</span>
+      <span className="min-w-0 truncate text-eyebrow leading-tight text-ink3">Production</span>
     </div>
   );
 }

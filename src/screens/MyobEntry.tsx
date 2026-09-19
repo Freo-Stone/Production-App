@@ -243,7 +243,7 @@ export function MyobEntry() {
             const runTot = runTotals(run.rows, unitOf);
             return (
               <section key={run.runDate} data-myob-run={isoDate(run.runDate)}>
-                <h3 className="flex flex-wrap items-baseline gap-x-2 bg-panel2/50 px-3 py-1.5 text-[0.7rem] font-700 uppercase tracking-wide text-ink3">
+                <h3 className="flex flex-wrap items-baseline gap-x-2 bg-panel2/50 px-3 py-1.5 text-eyebrow font-700 uppercase tracking-wide text-ink3">
                   {runLabel(run.runDate, runs[0]?.runDate ?? run.runDate, today)}
                   <span className="font-500 normal-case tracking-normal text-ink3">
                     {runTot.racks} {runTot.racks === 1 ? 'rack' : 'racks'} · {formatRunQty(runTot)}
@@ -298,7 +298,7 @@ export function MyobEntry() {
                   <thead>
                     <tr>
                       {columns.map((c) => (
-                        <th key={c.key} className="border-b border-line px-2 py-1.5 text-left text-[0.7rem] font-700 uppercase tracking-wide text-ink3">
+                        <th key={c.key} className="border-b border-line px-2 py-1.5 text-left text-eyebrow font-700 uppercase tracking-wide text-ink3">
                           {c.header}
                         </th>
                       ))}
@@ -441,8 +441,8 @@ function EntryRow({
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline gap-x-2">
-            <span className="font-mono text-[0.78rem] text-ink2">{batch.batchNo}</span>
-            <span className="text-[0.9rem] font-650">{batch.code}</span>
+            <span className="font-mono text-xs text-ink2">{batch.batchNo}</span>
+            <span className="text-sm font-650">{batch.code}</span>
             <span className="truncate text-xs text-ink3">{description}</span>
             {batch.blastedQty > 0 ? <Chip tone="curing">Blasted</Chip> : null}
           </span>
@@ -493,8 +493,8 @@ function KeyedPile({
           <li key={batch.id} data-myob-keyed={batch.batchNo} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-baseline gap-x-2">
-                <span className="font-mono text-[0.78rem] text-ink2">{batch.batchNo}</span>
-                <span className="text-[0.9rem] font-650">{batch.code}</span>
+                <span className="font-mono text-xs text-ink2">{batch.batchNo}</span>
+                <span className="text-sm font-650">{batch.code}</span>
                 <span className="truncate text-xs text-ink3">{description(batch.code)}</span>
               </span>
               <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-ink3">

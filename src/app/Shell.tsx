@@ -451,7 +451,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <Brand compact />
             </span>
             <div className="hidden min-w-0 lg:block">
-              <h1 className="truncate text-[0.95rem] font-700 leading-tight">{item.label}</h1>
+              <h1 className="truncate text-title font-700 leading-tight">{item.label}</h1>
               <p className="truncate text-[0.7rem] text-ink3">{item.blurb}</p>
             </div>
 
