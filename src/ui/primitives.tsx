@@ -171,7 +171,7 @@ export function Card({
         // Wrapped rather than in one unwinding row: a count chip beside the title
         // is `shrink-0`, so on a phone it used to win the fight and the heading
         // itself came out as "The…". The chips drop to a second line instead.
-        <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface2 px-3 py-2">
+        <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface2 px-3 py-2">
           <div className="min-w-[10rem] flex-1">
             {title ? <h2 className="truncate text-[0.92rem] font-650">{title}</h2> : null}
             {subtitle ? <p className="truncate text-xs text-ink3">{subtitle}</p> : null}
@@ -591,14 +591,21 @@ export function Modal({
     };
     document.addEventListener('keydown', onKey);
     // Background scroll would fight the sheet on phones.
+    // The document does not scroll any more — `main` does (see Shell) — so locking
+    // `body` would be a no-op and the table behind the scrim would slide under a
+    // finger. Lock whatever actually moves, and give it back untouched.
+    const region = document.querySelector('main') as HTMLElement | null;
     const prev = document.body.style.overflow;
+    const prevRegion = region?.style.overflow;
     document.body.style.overflow = 'hidden';
+    if (region) region.style.overflow = 'hidden';
     // Only take focus when nothing inside already has it, so `autoFocus` on the
     // first field inside the dialog survives.
     if (!panel.current?.contains(document.activeElement)) panel.current?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
+      if (region) region.style.overflow = prevRegion ?? '';
     };
   }, [open]);
 
@@ -648,7 +655,7 @@ export function Modal({
             exit={{ y: 16, opacity: 0, transition: { duration: 0.12 } }}
             transition={{ type: 'spring', stiffness: 420, damping: 34 }}
           >
-            <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface2 px-3 py-2">
+            <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface2 px-3 py-2">
               <div className="min-w-[10rem] flex-1">
                 {/* Not truncated: a dialog title is the question being asked, and
                     "How much of 2026-09-18-01 came…" on a phone stops being a

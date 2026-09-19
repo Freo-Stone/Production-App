@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useRoute } from '@/app/router';
 import { useCan } from '@/app/session';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useFillBelow } from '@/app/useFillBelow';
-import { useMediaQuery } from '@/app/useMediaQuery';
 import { useView } from '@/app/useView';
 import { demandByProduct, productPosition } from '@/core/calc';
 import { defaultView, SCREENS } from '@/core/defaults';
@@ -105,10 +103,6 @@ export function Products() {
   const batches = useLiveQuery(() => db.batches.toArray(), []);
   const settings = useLiveQuery(() => getSettings(), []);
 
-  // Below 640px the shell keeps 80px clear at the bottom for the phone nav, and
-  // the footnote under the table wraps to two or three lines instead of one.
-  const narrow = useMediaQuery('(max-width: 639px)');
-  const table = useFillBelow({ gap: narrow ? 140 : 56, min: 240 });
 
   const view = useView(
     SCREENS.products,
@@ -212,7 +206,7 @@ export function Products() {
   const allShownPicked = shown.length > 0 && shown.every((r) => picked.has(r.code));
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {/* No counts above the board. The filter says what you are looking at and
           the line under the table says how many of them are on screen; a row of
           numbers nobody asked for was the first thing on the screen for no reason.
@@ -220,6 +214,8 @@ export function Products() {
       <Card
         padded={false}
         title="Products"
+        className="flex min-h-0 flex-1 flex-col"
+        bodyClassName="flex min-h-0 flex-1 flex-col"
         subtitle="Tick what belongs in the current range, then set how each one is made and counted."
         actions={
           <>
@@ -308,7 +304,7 @@ export function Products() {
         {/* Down to the bottom of the window, whatever is sitting above it. The
             gap is the footnote underneath and, below 640px, the shell's bottom
             padding that keeps content clear of the phone's nav. */}
-        <div ref={table.ref} className="min-h-[240px]" style={table.height == null ? undefined : { height: table.height }}>
+        <div className="flex min-h-[240px] flex-1 flex-col">
           <DataTable
             rows={shown}
             columns={columns}

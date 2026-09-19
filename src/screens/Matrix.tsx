@@ -2,8 +2,6 @@ import { useCallback, useMemo, useState, type ReactElement } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useCan } from '@/app/session';
 import { navigate } from '@/app/router';
-import { useFillBelow } from '@/app/useFillBelow';
-import { useMediaQuery } from '@/app/useMediaQuery';
 import { useView } from '@/app/useView';
 import { defaultView, SCREENS } from '@/core/defaults';
 import {
@@ -99,8 +97,6 @@ export function Matrix() {
   const batches = useLiveQuery(() => db.batches.toArray(), []);
   const settings = useLiveQuery(() => getSettings(), []);
 
-  const narrow = useMediaQuery('(max-width: 639px)');
-  const table = useFillBelow({ gap: narrow ? 120 : 52, min: 240 });
 
   const fallback = useMemo(
     () => defaultView(SCREENS.matrix, [...STATIC_KEYS]),
@@ -171,8 +167,10 @@ export function Matrix() {
   const selected = open ? rows.find((r) => r.code === open.code) ?? null : null;
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <Card
+        className="flex min-h-0 flex-1 flex-col"
+        bodyClassName="flex min-h-0 flex-1 flex-col"
         padded={false}
         title="Matrix"
         subtitle="What is promised of each product, day by day, over where the stock actually stands."
@@ -239,11 +237,7 @@ export function Matrix() {
           />
         </div>
 
-        <div
-          ref={table.ref}
-          className="min-h-[240px]"
-          style={table.height == null ? undefined : { height: table.height }}
-        >
+        <div className="flex min-h-[240px] flex-1 flex-col">
           <DataTable
             rows={rows}
             columns={allColumns}

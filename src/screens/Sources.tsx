@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useCan } from '@/app/session';
-import { useFillBelow } from '@/app/useFillBelow';
-import { useMediaQuery } from '@/app/useMediaQuery';
 import { useView } from '@/app/useView';
 import { formatNumber } from '@/core/format';
 import { defaultView } from '@/core/defaults';
@@ -150,8 +148,6 @@ export function Sources() {
   const [importOpen, setImportOpen] = useState(false);
   const [locationsOpen, setLocationsOpen] = useState(false);
   // Below 640px the shell keeps 80px clear at the bottom for the phone nav.
-  const narrow = useMediaQuery('(max-width: 639px)');
-  const table = useFillBelow({ gap: narrow ? 92 : 16, min: 240 });
 
   const stock = useLiveQuery(() => latestStockSnapshot(), []);
   const jobs = useLiveQuery(() => latestJobsSnapshot(), []);
@@ -276,7 +272,7 @@ export function Sources() {
   }, [staged.length]);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {/* ── How the data gets here ─────────────────────────────────────────── */}
       {/* Counts used to sit here in tiles, then in a line of facts. They were the
           first thing on the screen and nobody read them: the tab over a mirror says
@@ -371,6 +367,8 @@ export function Sources() {
 
       {/* ── Tables ─────────────────────────────────────────────────────────── */}
       <Card
+        className="flex min-h-0 flex-1 flex-col"
+        bodyClassName="flex min-h-0 flex-1 flex-col"
         padded={false}
         title={
           <Segmented
@@ -448,7 +446,7 @@ export function Sources() {
 
         {/* Down to the bottom of the window: the table is the reason this screen
             is opened, so it gets everything the top of the screen does not need. */}
-        <div ref={table.ref} className="min-h-[240px]" style={table.height == null ? undefined : { height: table.height }}>
+        <div className="flex min-h-[240px] flex-1 flex-col">
           {tab === 'stock' ? (
             <DataTable
               rows={stockRows}

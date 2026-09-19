@@ -37,9 +37,63 @@ async function box(page: Page): Promise<Box> {
   });
 }
 
-/** The shell keeps the last 80px clear for the phone nav below 640px. */
-function bottomAllowance(width: number): number {
-  return width < 640 ? 80 : 16;
+/**
+ * Does the page fill the window it was given, without running past it?
+ *
+ * This used to answer with a typed number — `width < 640 ? 80 : 16` — which was the
+ * same guess the layout itself was built on, so the test could only ever confirm the
+ * guess. Everything here is measured off the DOM at run time: the bottom padding the
+ * stylesheet actually gave `main`, and the real height of the phone nav when it is on
+ * screen. Nothing in this file is a pixel allowance any more, which is what makes it
+ * hold at 1366x768, at 2560 wide, and in a browser zoomed to 150%.
+ */
+async function fit(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const main = document.querySelector('main');
+    if (!main) return 'no scroll region to measure';
+    const kids = Array.from(main.children) as HTMLElement[];
+    const last = kids[kids.length - 1];
+    if (!last) return 'the scroll region is empty';
+    const bottom = Math.round(last.getBoundingClientRect().bottom);
+    const pad = Math.round(parseFloat(getComputedStyle(main).paddingBottom));
+    const nav = document.querySelector('nav[class*="fixed"]');
+    const navH = nav ? Math.round(nav.getBoundingClientRect().height) : 0;
+    // Below 640px the phone nav is painted over the page, so the shell keeps at
+    // least its height clear. Measured, not assumed: if the nav changes height the
+    // expectation moves with it.
+    const want = window.innerWidth < 640 ? Math.max(pad, navH) : pad;
+    const gap = window.innerHeight - bottom - want;
+    if (gap > 2) return `the page stops ${String(gap)}px short of the bottom`;
+    if (gap < -2) return `the page runs ${String(-gap)}px past the bottom`;
+    // The card may not swallow its own rows. `overflow: hidden` on a card whose
+    // flex child is allowed to shrink to nothing turns a short window into lost
+    // rows with no way to reach them — measured on a landscape phone, that was a
+    // 3px table on Data sources and 47px on Products. A card that cannot fit must
+    // make the *page* scroll instead, which is what `min-h-fit` gives it.
+    const card = document.querySelector('[data-density]')?.closest('section');
+    if (card) {
+      const clipped = Math.round(card.scrollHeight - card.clientHeight);
+      if (clipped > 2) return `the card is clipping ${String(clipped)}px of its own table`;
+    }
+    // The region that scrolls is `main`; the document cannot scroll at all, so an
+    // assertion on documentElement.scrollHeight would now pass on any layout.
+    const left = Math.round(main.scrollHeight - main.clientHeight);
+    if (left > 2) {
+      // Page scroll is only honest if it can actually reach the end. On a window
+      // too short for the screen's furniture the page must run on to the bottom;
+      // what must never happen is content sitting below a page that cannot get to it.
+      main.scrollTop = main.scrollHeight;
+      const rest = Math.round(main.scrollHeight - main.scrollTop - main.clientHeight);
+      const ended = Math.round(last.getBoundingClientRect().bottom) + want;
+      if (rest > 2) return `the page cannot reach its own bottom, ${String(rest)}px out`;
+      if (Math.abs(window.innerHeight - ended) > 2) {
+        return `the page ends ${String(window.innerHeight - ended)}px short even scrolled to the bottom`;
+      }
+      main.scrollTop = 0;
+      return 'ok';
+    }
+    return 'ok';
+  });
 }
 
 const topCell = (page: Page) => scroller(page).locator('[role="row"]').nth(1).locator('.dt-cell').first();
@@ -51,24 +105,13 @@ test.describe('the table gets the screen', () => {
     // What is being measured is the screen at rest, not with a drawer open.
     await page.getByRole('button', { name: /Import by hand/ }).click();
 
-    const width = page.viewportSize()?.width ?? 1280;
-
-    // Polled, not sampled: the height is measured after render, and the screen
-    // has just taken on two thousand rows. Sampling once measures a screen that is
+    // Polled, not sampled: the screen has just taken on two thousand rows and is
     // still arranging itself, which fails on a loaded machine and means nothing.
     await expect
-      .poll(
-        async () => {
-          const b = await box(page);
-          const target = b.innerHeight - bottomAllowance(width);
-          if (b.bottom > target + 8) return `the table runs ${String(b.bottom - target)}px past the bottom`;
-          if (b.bottom < target - 12) return `the table stops ${String(target - b.bottom)}px short of the bottom`;
-          const over = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
-          if (over > 2) return `the page still has ${String(over)}px left to scroll`;
-          return 'ok';
-        },
-        { timeout: 10_000, message: 'the table reaches the bottom and the page has nothing left to scroll' },
-      )
+      .poll(() => fit(page), {
+        timeout: 10_000,
+        message: 'the table reaches the bottom and the page has nothing left to scroll',
+      })
       .toBe('ok');
 
     // The furniture above is not allowed to grow back: where the table's card
@@ -123,23 +166,59 @@ test.describe('the table gets the screen', () => {
     }
   });
 
-  test('the products grid reaches the bottom too', async ({ page }) => {
-    await openApp(page, '/products');
+  test('the products grid reaches the bottom at every window it is handed', async ({ page }) => {
+    // Real codes, or there is nothing to scroll and the scroll assertions below
+    // pass by accident on an empty board.
+    await openApp(page, '/sources');
+    await importBoth(page);
+    await page.goto(page.url().replace(/#.*$/, '') + '#/products');
     await page.waitForTimeout(400);
-    const width = page.viewportSize()?.width ?? 1280;
-    // The line of guidance under the table is allowed its own room.
-    await expect
-      .poll(
-        async () => {
-          const b = await box(page);
-          const target = b.innerHeight - bottomAllowance(width) - 44;
-          if (b.bottom > target + 12) return `the table runs ${String(b.bottom - target)}px past the note under it`;
-          if (b.bottom < target - 24) return `the table stops ${String(target - b.bottom)}px short`;
-          return 'ok';
-        },
-        { timeout: 10_000, message: 'the products grid reaches the bottom of the window' },
-      )
-      .toBe('ok');
+
+    // The line of guidance under the table is measured as part of the page, so it is
+    // allowed its room without a constant for it.
+    //
+    // Five windows, because "it fits on my monitor" is how the last design got here:
+    // 1536x864 and 1280x720 are what a 1920x1080 display becomes at 125% and 150%
+    // browser zoom, which is a thing the shop does on the projector and the laptop.
+    for (const size of [
+      { width: 1920, height: 1080 },
+      { width: 2560, height: 1440 },
+      { width: 1366, height: 768 },
+      { width: 1536, height: 864 },
+      { width: 1280, height: 720 },
+      // A phone turned sideways is deliberately NOT in this loop yet. At 844x390 the
+      // card is shorter than its own furniture, `overflow: hidden` clips the grid,
+      // and with the page no longer scrolling there is nothing left to reach it with:
+      // measured 47px of visible table on Products and 3px on Data sources. The
+      // assertion for it is written and passes against a card that cannot shrink
+      // below its content, but that fix moved a toolbar on top of the import button,
+      // so it needs doing properly with a test of its own. See TASKS.md.
+    ]) {
+      await page.setViewportSize(size);
+      await expect
+        .poll(() => fit(page), {
+          timeout: 10_000,
+          message: `the grid fills the window at ${String(size.width)}x${String(size.height)}`,
+        })
+        .toBe('ok');
+
+      // And the rows, not the page, are what scrolls at that size.
+      const inside = await scroller(page).evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return {
+          scrolls: /(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight,
+          room: el.scrollHeight - el.clientHeight,
+        };
+      });
+      expect(inside.scrolls, `the grid body is the scroll container at ${String(size.width)}px`).toBe(true);
+      expect(inside.room, 'the list is taller than the box it sits in').toBeGreaterThan(0);
+      const height = await scroller(page).evaluate((el) => el.getBoundingClientRect().height);
+      // A relationship, not a constant: the grid has to be at least a fifth of the
+      // window it was given, or it is a strip rather than a table.
+      expect(height, `the grid gets usable height at ${String(size.width)}x${String(size.height)}`).toBeGreaterThan(
+        size.height / 5,
+      );
+    }
   });
 
   test('a closed panel keeps its content off the screen', async ({ page }) => {

@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
+import { useIsCoarsePointer } from '@/app/useMediaQuery';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { navigate } from '@/app/router';
-import { useFillBelow } from '@/app/useFillBelow';
-import { useIsCoarsePointer, useMediaQuery } from '@/app/useMediaQuery';
 import { useView } from '@/app/useView';
 import { dayStart, formatDayFull, formatSince } from '@/core/dates';
 import { defaultView } from '@/core/defaults';
@@ -121,8 +120,6 @@ const COLUMNS: ColumnDef<JobLineView>[] = [
 
 export function FutureJobs() {
   const touch = useIsCoarsePointer();
-  const narrow = useMediaQuery('(max-width: 639px)');
-  const table = useFillBelow({ gap: narrow ? 140 : 16, min: 240 });
 
   const [filter, setFilter] = useState<JobFilter>(defaultJobFilter);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -215,8 +212,10 @@ export function FutureJobs() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <Card
+        className="flex min-h-0 flex-1 flex-col"
+        bodyClassName="flex min-h-0 flex-1 flex-col"
         title="The order book"
         subtitle={head()}
         actions={
@@ -332,7 +331,7 @@ export function FutureJobs() {
         </div>
       </Card>
 
-      <div ref={table.ref} className="min-h-[240px]" style={table.height == null ? undefined : { height: table.height }}>
+      <div className="flex min-h-[240px] flex-1 flex-col">
         <DataTable
           rows={shown}
           columns={COLUMNS}

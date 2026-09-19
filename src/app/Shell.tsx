@@ -436,7 +436,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const themeIcon: IconName = themePref === 'light' ? 'sun' : themePref === 'system' ? 'settings' : 'moon';
 
   return (
-    <div className="flex min-h-dvh flex-col bg-canvas text-ink">
+    <div className="flex h-dvh flex-col bg-canvas text-ink">
       <FirstRunBanner />
 
       <div className="flex min-h-0 flex-1">
@@ -468,7 +468,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          <main className="min-w-0 flex-1 p-2 pb-20 sm:p-3 lg:pb-4">{children}</main>
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-2 pb-20 sm:p-3 lg:pb-4">{children}</main>
         </div>
       </div>
 

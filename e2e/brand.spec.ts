@@ -31,14 +31,34 @@ test.describe('the shop\'s brand', () => {
     expect((box?.width ?? 0) / (box?.height ?? 1)).toBeLessThan(1.05);
   });
 
-  test('the header wears the same artwork as the home-screen icon', async ({ page }) => {
+  test("the rail wears the shop's logo, not a description of it", async ({ page }) => {
     await openApp(page);
+    const width = page.viewportSize()?.width ?? 1280;
 
-    // The rail's tile is the mark, drawn from the logo by the same script the icons
-    // come from. It is looked for by where it sits rather than by file name, because
-    // a 1KB SVG is inlined into the bundle as a data URI and has no file name by then.
-    // On a phone the rail lives in the drawer, so it is in the page whether or not
-    // this window is wide enough to show it.
+    if (width >= 1024) {
+      // The open rail shows the lettered logo. This used to assert the *text*
+      // "Freo Stone" beside the mark, which is the app typing the shop's name where
+      // the shop's own artwork should be — so the assertion changed with the design,
+      // and says what the shop asked for: the logo, on the screen you work on.
+      const logo = page.locator('nav').first().getByRole('img', { name: 'Freo Stone Paving' });
+      await expect(logo).toBeVisible();
+      const decoded = await logo.evaluate((el) => (el as HTMLImageElement).naturalWidth);
+      expect(decoded, 'the logo must actually load, not sit as an empty box').toBeGreaterThan(0);
+      const box = await logo.boundingBox();
+      // Square, because that is the shape of the artwork: a stretched logo is a bug
+      // nobody notices until it is on the biggest screen in the office.
+      expect(box).not.toBeNull();
+      expect((box?.width ?? 0) / (box?.height ?? 1)).toBeGreaterThan(0.95);
+      expect((box?.width ?? 0) / (box?.height ?? 1)).toBeLessThan(1.05);
+      // And large enough that the lettering in it is the point, not a smudge: 40px or
+      // more, which is what the artwork needs before its words read as words.
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(40);
+      return;
+    }
+
+    // Below that the rail collapses and the header carries the mark: the same artwork
+    // with the lettering taken out, cut from the logo by `scripts/make-brand.py`,
+    // because at 28px in a 48px bar the words are mush and the shapes carry the shop.
     const mark = page.locator('nav img').first();
     await expect(mark).toBeAttached();
     const size = await mark.evaluate((el) => ({
@@ -48,13 +68,7 @@ test.describe('the shop\'s brand', () => {
     }));
     expect(size.src).not.toBe('');
     expect(size.complete).toBe(true);
-    // The mark carries its own size, so a loaded one always reports one.
     expect(size.natural).toBeGreaterThanOrEqual(28);
-
-    if (page.viewportSize()?.width && (page.viewportSize()?.width ?? 0) >= 1024) {
-      await expect(mark).toBeVisible();
-      await expect(page.locator('nav').first().getByText('Freo Stone')).toBeVisible();
-    }
   });
 
   test('what the browser and an installer are told is the shop\'s blue', async ({ page }) => {
