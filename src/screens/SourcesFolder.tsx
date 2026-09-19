@@ -65,7 +65,7 @@ const OUTCOME_CHIP: Record<FolderOutcome['action'], { label: string; tone: Tone 
 been shown one, actually needs. */
 function quietPanel(state: FolderAccessState) {
   return (
-    <span data-folder-details className="basis-full rounded-lg border border-line bg-panel2/40 p-2.5 text-xs text-ink2">
+    <span data-folder-details className="basis-full rounded-lg border border-line bg-surface2/40 p-2.5 text-xs text-ink2">
       {state === 'unsupported' ? (
         <>
           Only <b className="font-650">Chrome</b> and <b className="font-650">Edge</b> can read a folder from a web
@@ -264,7 +264,7 @@ export function FolderWatchLine({
       {details ? (
         <span data-folder-details className="flex basis-full flex-col gap-3 border-t border-line pt-2.5">
           {access.state === 'unsupported' ? (
-            <span className="rounded-lg border border-line bg-panel2/40 p-2.5 text-xs text-ink2">
+            <span className="rounded-lg border border-line bg-surface2/40 p-2.5 text-xs text-ink2">
               Only <b className="font-650">Chrome</b> and <b className="font-650">Edge</b> can read a folder from a web
               page — Firefox and Safari will not let any website see a disk. Nothing is broken: open the app in Chrome or
               Edge on the computer that runs MYOB, and everything else carries on importing from the repository as usual.
@@ -277,7 +277,7 @@ export function FolderWatchLine({
               const outcome = look?.outcome;
               const chip2 = outcome == null ? { label: 'Not looked yet', tone: 'neutral' as Tone } : OUTCOME_CHIP[outcome.action];
               return (
-                <span key={kind} data-folder-kind={kind} className="flex flex-col gap-1.5 rounded-lg border border-line bg-panel2/40 p-2.5">
+                <span key={kind} data-folder-kind={kind} className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface2/40 p-2.5">
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-eyebrow font-650 uppercase tracking-wide text-ink3">{KIND_TITLE[kind]}</span>
                     <Chip tone={chip2.tone}>{chip2.label}</Chip>

@@ -243,7 +243,7 @@ export function MyobEntry() {
             const runTot = runTotals(run.rows, unitOf);
             return (
               <section key={run.runDate} data-myob-run={isoDate(run.runDate)}>
-                <h3 className="flex flex-wrap items-baseline gap-x-2 bg-panel2/50 px-3 py-1.5 text-eyebrow font-700 uppercase tracking-wide text-ink3">
+                <h3 className="flex flex-wrap items-baseline gap-x-2 bg-surface2/50 px-3 py-1.5 text-eyebrow font-700 uppercase tracking-wide text-ink3">
                   {runLabel(run.runDate, runs[0]?.runDate ?? run.runDate, today)}
                   <span className="font-500 normal-case tracking-normal text-ink3">
                     {runTot.racks} {runTot.racks === 1 ? 'rack' : 'racks'} · {formatRunQty(runTot)}

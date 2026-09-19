@@ -132,7 +132,7 @@ export function People(): React.ReactElement {
             logins are real on this device today. They travel inside the shop's shared
             state file, and the loop that carries that file between devices is the next
             piece of work — so a person added here is not yet on the phone. */}
-        <p className="mt-1 text-xs text-warn">
+        <p className="mt-1 max-w-[70ch] text-xs text-warn">
           This list lives on this device until the shop's sync loop is wired up. To give
           somebody a login on another machine, add them there too — or sign that machine
           in through &ldquo;This device is not set up yet&rdquo; once this one has been

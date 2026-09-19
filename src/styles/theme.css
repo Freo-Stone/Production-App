@@ -209,6 +209,24 @@ body {
     font: inherit;
     min-width: 0;
   }
+  /* A stepper arrow in every editable cell is the single most "unfinished" thing
+     about the dense screens, and the arrows cannot be hit with a glove. They come
+     back the moment the field has focus, for whoever does want them. */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number']:focus::-webkit-inner-spin-button {
+    -webkit-appearance: inner-spin-button;
+  }
+  input[type='number'] {
+    appearance: textfield;
+  }
+  input[type='number']:focus {
+    appearance: auto;
+  }
+
   input[type='number'].input {
     text-align: right;
     font-variant-numeric: tabular-nums;
@@ -255,9 +273,11 @@ body {
     gap: 0.25rem;
     min-width: 0;
     padding: 0 0.5rem;
-    font-size: 0.74rem;
+    /* The header is the axis the numbers are read against. It was smaller AND dimmer
+       than its own data, which put the reader's eye in the wrong place. */
+    font-size: 0.78rem;
     font-weight: 650;
-    color: var(--color-ink2);
+    color: var(--color-ink);
     white-space: nowrap;
     overflow: hidden;
     border-right: 1px solid var(--color-line);
@@ -374,6 +394,18 @@ body {
     background: var(--row-bg, var(--color-surface));
   }
 
+  /* A total is the number somebody came for. `.dt-cell` clips its content on purpose
+     -- a long description must not push the grid sideways -- but in this one row the
+     text is the point, and "525,509..." is not an answer. The cells around a total are
+     empty, so there is nothing for it to collide with. */
+  /* A total is the number somebody came for. `.dt-cell` clips its content on purpose
+     -- a long description must not push the grid sideways -- but in this one row the
+     text is the point, and "525,509..." is not an answer. The cells around a total are
+     empty, so there is nothing for it to collide with. */
+  /* A total is the number somebody came for. `.dt-cell` clips its content on purpose
+     -- a long description must not push the grid sideways -- but in this one row the
+     text is the point, and "525,509..." is not an answer. The cells around a total are
+     empty, so there is nothing for it to collide with. */
   .dt-totals {
     position: sticky;
     bottom: 0;

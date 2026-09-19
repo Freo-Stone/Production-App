@@ -249,7 +249,7 @@ export function Products() {
           </>
         }
       >
-        <div className="border-b border-line px-2 py-2">
+        <div className="border-b border-line px-3 py-2">
           <ViewToolbar
             view={view.view}
             patch={view.patch}
@@ -373,7 +373,7 @@ export function Products() {
         />
       ) : null}
 
-      <p className="flex items-start gap-1.5 text-xs text-ink3">
+      <p className="flex max-w-[70ch] items-start gap-1.5 text-xs text-ink3">
         <Icon name="info" size={13} className="mt-0.5 shrink-0" />
         <span>
           Tick <b>Current</b> for anything you make: everything else stays listed but out of the matrix, so an old MYOB
@@ -484,7 +484,7 @@ function ReadCheck({ on }: { on: boolean }): ReactNode {
       {on ? (
         <Icon name="check" size={12} className="text-curing" />
       ) : (
-        <span className="text-[0.7rem] text-ink3">—</span>
+        <span className="text-eyebrow text-ink3">—</span>
       )}
     </CellStatic>
   );

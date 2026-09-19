@@ -391,7 +391,7 @@ export function Sources() {
           ) : null
         }
       >
-        <div className="border-b border-line px-2 py-2">
+        <div className="border-b border-line px-3 py-2">
           {tab === 'stock' ? (
             <ViewToolbar
               view={stockView.view}

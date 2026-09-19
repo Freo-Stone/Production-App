@@ -211,7 +211,7 @@ export function Matrix() {
           </>
         }
       >
-        <div className="border-b border-line px-2 py-2">
+        <div className="border-b border-line px-3 py-2">
           <ViewToolbar
             view={phoneView}
             patch={view.patch}

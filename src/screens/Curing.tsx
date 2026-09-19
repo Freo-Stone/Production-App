@@ -171,7 +171,7 @@ export function Curing() {
           >
             {summary !== null && summary.due > 0 ? (
               <div
-                className="flex flex-wrap items-center justify-between gap-2 rounded border border-line bg-panel2/60 px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded border border-line bg-surface2/60 px-3 py-2"
                 data-curing-offer
               >
                 <p className="min-w-[16rem] flex-1 text-sm text-ink2">
@@ -204,7 +204,7 @@ export function Curing() {
               <div className="divide-y divide-line">
                 {shown.map((group) => (
                   <section key={group.bucket} data-curing-bucket={group.bucket}>
-                    <h3 className="bg-panel2/50 px-3 py-1.5 text-eyebrow font-700 uppercase tracking-wide text-ink3">
+                    <h3 className="bg-surface2/50 px-3 py-1.5 text-eyebrow font-700 uppercase tracking-wide text-ink3">
                       {group.label}
                       <span className="ml-2 font-500 normal-case">
                         {group.rows.length} rack

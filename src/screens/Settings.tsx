@@ -123,7 +123,7 @@ export function Settings() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Device" value={settings.deviceName} sub="shown on every change in the log" />
         <Tile
           label="Repository"
@@ -219,7 +219,7 @@ export function Settings() {
           </div>
         ) : null}
 
-        <p className="mt-3 text-xs text-ink3">
+        <p className="mt-3 max-w-[70ch] text-xs text-ink3">
           The token lives in this browser only. It is not part of the settings that sync, so it never reaches the
           repository or its history — but it is also why each device has to be given one.
         </p>

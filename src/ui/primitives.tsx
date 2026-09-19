@@ -53,9 +53,9 @@ export function Button({
         variant === 'primary' && 'btn-primary',
         variant === 'ghost' && 'btn-ghost',
         variant === 'danger' && 'btn-danger',
-        size === 'sm' && 'py-1 text-[0.8rem]',
+        size === 'sm' && 'py-1 text-ui',
         size === 'touch' && 'btn-touch',
-        active && 'border-accent/70 text-accent',
+        active && 'border-accent/60 bg-accent/15 text-ink',
         loading && 'pointer-events-none opacity-60',
         className,
       )}
@@ -95,7 +95,7 @@ export function IconButton({
       aria-pressed={active || undefined}
       className={cx(
         'btn btn-ghost !px-1.5',
-        active && 'text-accent',
+        active && 'bg-accent/15 text-accent',
         tone === 'danger' && 'text-short',
         className,
       )}
@@ -212,7 +212,7 @@ export function Tile({
       )}
     >
       <span className="text-eyebrow font-600 uppercase tracking-wide text-ink3">{label}</span>
-      <span className={cx('num text-lg font-700 leading-tight', TONE_TEXT[tone])}>{value}</span>
+      <span className={cx('text-lg font-700 leading-tight tabular-nums', TONE_TEXT[tone])}>{value}</span>
       {sub ? <span className="truncate text-xs text-ink3">{sub}</span> : null}
     </Wrapper>
   );
@@ -452,7 +452,7 @@ export function Segmented<T extends string>({
           className={cx(
             'flex-1 rounded-[5px] font-600 whitespace-nowrap transition-colors',
             size === 'sm' ? 'px-2 py-0.5 text-[0.75rem]' : 'px-2.5 py-1 text-ui',
-            value === o.value ? 'bg-surface3 text-ink' : 'text-ink3 hover:text-ink2',
+            value === o.value ? 'bg-accent text-accentink' : 'text-ink3 hover:text-ink2',
           )}
         >
           {o.label}

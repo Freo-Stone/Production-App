@@ -1572,3 +1572,15 @@ Per-screen, the biggest: Matrix's legend chips are the loudest pixels on the scr
 actual short signal is 5% red; Matrix draws a dot in every empty day cell; People's Actions column
 is entirely off-screen on the phone, so a device cannot be renamed or removed; the age/online chip
 is `hidden sm:block`, so a phone gets no freshness signal at all.
+
+### A claim that did not survive measuring
+
+The review of the photographs said `.dt-totals` clips the totals -- "525,509..." on the Matrix.
+The rule went in, then came back out. Measured with the rule removed, **every** totals cell on the
+Matrix and on Products reported `scrollWidth == clientWidth` at 1920x1080 and at 1366x768: nothing
+was clipping, the columns size themselves to their content, and my new assertion could not fail.
+What is genuinely wrong in that row is the unit repeated inside every cell -- "525,509.73 m2" five
+times a row -- which is what makes those columns wide enough to threaten the edge at all. That is
+the fix to do (unit in the header once, bare tabular numbers below), and the totals row should be
+re-measured after it. `e2e/appearance.spec.ts` carries the reason where the next person will read
+it, because a test that cannot fail is worse than no test.
