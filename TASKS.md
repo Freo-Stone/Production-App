@@ -1417,3 +1417,18 @@ header + toolbar + 240 + footnote — rather than guessing at another `min-heigh
 allowed to be clipped); only the `{ width: 844, height: 390 }` entry is out of the viewport
 loop, and it needs putting back when the fix is real. The measured damage, for the record:
 47px of visible table on Products, 3px on Data sources, 172px on Matrix.
+
+Third attempt, also rejected, and it narrowed the number. Making the grid's floor
+viewport-relative (`min-h-[240px]` to `min-h-[min(240px,40vh)]`, so a short window shrinks the
+table instead of the card clipping it) took the clip at 844x390 from 194px to **123px** on
+Products — the clip moves almost one for one with the floor, which proves the remaining
+shortfall is the screen's own furniture: about 279px of card header, wrapped toolbar rows and
+footnote inside a 390px window, before the table gets a single pixel.
+
+So the sideways case is not a `min-height` variant away from being right. It needs one of:
+the card's minimum to stop at the scroll box (bounded contribution from the DataTable
+subtree, so the 80,000px virtual spacer is not inherited), or the screen's furniture to give
+room on a short window, or the page to scroll when the furniture does not fit. All three are
+real work in the DataTable subtree or the screen's toolbar, and all three need the DOM read
+at 844x390 first. Committed state restored after this attempt; `e2e/layout.spec.ts` green on
+all three projects without the sideways entry in the loop.
