@@ -1388,3 +1388,32 @@ vacuous the moment `main` became the scroll region. Both are replaced by `fit()`
 clipping its own table, and checks the region that actually scrolls. `cardTop <= innerHeight
 * 0.32` is untouched: it was already a relationship, and it is the guard that once rejected a
 2px regression.
+
+## Sideways-phone clipping: two fixes tried, both rejected, and why
+
+The 844x390 clip is still open, and two obvious fixes have now been built, measured and
+reverted. Recording them is the point, because both fail for the *same* reason and the next
+attempt should start from that rather than trying a third variation of the same idea.
+
+Both attempts tried to stop the card shrinking below its own content — `min-h-fit` on the
+fill card, and then removing `min-h-0` from it so its minimum became content-based by
+default. Both made the card inherit a content minimum from the **virtualised table**, whose
+spacer element is as tall as all 2,367 rows (~80,000px). So instead of "header + toolbar +
+240px + footnote", the card demanded the whole list: with `min-h-fit` it grew over
+neighbouring content and three browser specs failed with *subtree intercepts pointer events*
+(the Data sources toolbar landed on the import button); with `min-h-0` removed the page
+scrolled at 1920x1080 and the layout specs that require the page to have nothing left to
+scroll failed on desktop, phone and firefox. The committed state was restored and the spec
+passes again.
+
+What the fix has to express is a floor that counts the card's *furniture* but not its
+*rows*. That means the card's minimum must stop at the scroll box, which needs the scroll
+box's own contribution bounded (`overflow: hidden`/`min-height: 0` at the right level of the
+DataTable subtree, or an explicit `contain`) rather than the card being told to measure its
+content. Look at the DOM at 844x390 before choosing — `card.scrollHeight` versus the sum of
+header + toolbar + 240 + footnote — rather than guessing at another `min-height` variant.
+
+`e2e/layout.spec.ts` has the assertion that catches the clip inside `fit()` (the card is not
+allowed to be clipped); only the `{ width: 844, height: 390 }` entry is out of the viewport
+loop, and it needs putting back when the fix is real. The measured damage, for the record:
+47px of visible table on Products, 3px on Data sources, 172px on Matrix.
