@@ -62,9 +62,6 @@ async function fit(page: Page): Promise<string> {
     // least its height clear. Measured, not assumed: if the nav changes height the
     // expectation moves with it.
     const want = window.innerWidth < 640 ? Math.max(pad, navH) : pad;
-    const gap = window.innerHeight - bottom - want;
-    if (gap > 2) return `the page stops ${String(gap)}px short of the bottom`;
-    if (gap < -2) return `the page runs ${String(-gap)}px past the bottom`;
     // The card may not swallow its own rows. `overflow: hidden` on a card whose
     // flex child is allowed to shrink to nothing turns a short window into lost
     // rows with no way to reach them — measured on a landscape phone, that was a
@@ -92,6 +89,9 @@ async function fit(page: Page): Promise<string> {
       main.scrollTop = 0;
       return 'ok';
     }
+    const gap = window.innerHeight - bottom - want;
+    if (gap > 2) return `the page stops ${String(gap)}px short of the bottom`;
+    if (gap < -2) return `the page runs ${String(-gap)}px past the bottom`;
     return 'ok';
   });
 }
@@ -186,6 +186,11 @@ test.describe('the table gets the screen', () => {
       { width: 1366, height: 768 },
       { width: 1536, height: 864 },
       { width: 1280, height: 720 },
+      // A phone turned sideways: a window shorter than the screen's own furniture.
+      // The page takes over from the card here (see the gate in theme.css), so the
+      // last row has to be reachable and no row may be hidden behind the card.
+      { width: 844, height: 390 },
+      { width: 667, height: 375 },
       // A phone turned sideways is deliberately NOT in this loop yet. At 844x390 the
       // card is shorter than its own furniture, `overflow: hidden` clips the grid,
       // and with the page no longer scrolling there is nothing left to reach it with:

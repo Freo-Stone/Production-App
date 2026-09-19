@@ -388,3 +388,37 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* A window too short for the screen's own furniture: page flow, not a clipped card.
+ *
+ * A grid is a scroll box only while every height above it is definite. On a phone held
+ * sideways (844x390, and any window under ~560px tall) the card is handed less than its
+ * own header, tabs and toolbar — Data sources' card measured two pixels tall — so
+ * `.card { overflow: hidden }` hid 123-299px of rows with nothing able to scroll to them.
+ *
+ * Under this gate the card stops being a flex child that can be crushed, and the grid
+ * wrapper takes a *definite* 240px instead of a flexible one. The definite height is the
+ * whole trick: it keeps the chain definite, so the virtualised spacer for 2,367 rows
+ * (~91,000px) is never inherited as a height — the bug that `min-h-fit` and dropping
+ * `min-h-0` both walked straight into. The screen then runs past the scroll region and
+ * the page scrolls, which is what a window with no room has to do.
+ *
+ * Gated on height, never width: 844x390 is wider than a phone in portrait and still
+ * broken, while 1366x768 with the same rules loses 223px of table. Measured broken at
+ * 390 and 400, healthy at 768 and up; the band between 560 and 768 has never been
+ * measured, so the number here is a judgement and the ledger says so.
+ */
+@media (max-height: 560px) {
+  main > div.h-full.h-full {
+    height: auto;
+    min-height: 100%;
+  }
+  section.card.flex-1.min-h-0 {
+    min-height: auto;
+  }
+  div.min-h-\[240px\].min-h-\[240px\] {
+    flex: 0 0 auto;
+    height: 240px;
+    min-height: 0;
+  }
+}
