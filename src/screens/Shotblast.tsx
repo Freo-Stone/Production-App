@@ -57,6 +57,8 @@ export function Shotblast() {
   // `sortBy('rank')` rather than `toArray()`: the shape Dexie's live query can
   // re-run when the products change. The racks are quick and the 2,691 products
   // are not, so rows wait for the lookups rather than flashing bare codes.
+  // Whole range on purpose — a lookup for racks that exist, not the current range.
+  // Nothing on this screen lists products by code: it lists racks. See `core/currentRange`.
   const products = useLiveQuery(() => db.products.filter((p) => !p.deleted).sortBy('rank'), []);
 
   const byCode = useMemo(() => new Map((products ?? []).map((p) => [p.code, p])), [products]);

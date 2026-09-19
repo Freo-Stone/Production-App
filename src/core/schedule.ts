@@ -1,6 +1,7 @@
 import type { JobLineView } from '@/core/jobsBoard';
 import type { PlanItem, Product, ProductRoute, ProductUnit, Settings } from '@/core/types';
 import { latestStartDate, traysFromQty } from '@/core/calc';
+import { isCurrentProduct } from '@/core/currentRange';
 import { dayStart, diffDays } from '@/core/dates';
 import { round } from '@/core/format';
 
@@ -29,6 +30,16 @@ import { round } from '@/core/format';
  * What a plan item makes beyond the promises it answers is reported as `surplus`
  * rather than trimmed away: a plan that over-makes is information, not a rounding
  * error.
+ *
+ * **`current` is the tick, carried on the row.** The plan is an answer to *what do we
+ * make next*, so a code with the tick off does not belong on it — not as a promise
+ * gap, and not as a plan line the shop wrote before the code was unticked. This
+ * module does not drop those rows itself: it tags them, and the screen filters. The
+ * reason is the one that applies to every table here — a table that hides rows while
+ * its chips and its footer still count them is worse than either, so the row set and
+ * every reducer over it have to be taken from the same list, in one place, at the
+ * screen's own edge. `test/ui.schedule.test.tsx` pins that the chip counts and the
+ * planned figures move with the rows.
  *
  * The date a make has to start by is not invented here. It is
  * `calc.latestStartDate` — promise date less the cure, less the blasting handling
@@ -79,6 +90,15 @@ export interface ScheduleLine {
   description: string;
   /** The code is a product on this device, so the lead time and the route mean anything. */
   ours: boolean;
+  /**
+   * The code is in the current range — ours **and** ticked on Products.
+   *
+   * A row whose code is not current is not a make the shop has decided to make, so it
+   * never reaches the table. It is carried as far as the screen and filtered there
+   * rather than dropped in here, so the screen can say how many it took out instead
+   * of the plan simply getting shorter.
+   */
+  current: boolean;
   unit: ProductUnit | null;
   /** How much this row has to make, in the item's own unit. */
   qty: number;
@@ -198,6 +218,7 @@ function view(
   const bucket = bucketOf(base.status, base.latestStart, today);
   return {
     ...base,
+    current: isCurrentProduct(product),
     trays: traysFor(base.qty, product),
     daysToStart,
     behind: daysToStart !== null && daysToStart < 0,

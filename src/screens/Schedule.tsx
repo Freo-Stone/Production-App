@@ -164,9 +164,22 @@ export function Schedule() {
     });
   }, [source]);
 
-  const totals = useMemo(() => (rows ? summariseSchedule(rows) : null), [rows]);
-  const counts = useMemo(() => (rows ? bucketCounts(rows) : null), [rows]);
-  const shown = useMemo(() => (rows ? filterSchedule(rows, filter) : []), [rows, filter]);
+  // The plan is only ever about the current range, and this is the single place that
+  // fact is applied. `core/schedule` tags each row with `current` — the answer of
+  // `isCurrentProduct`, the one predicate — and here the rows are cut and every
+  // figure after it is reduced over the cut list: the chips (`counts`), the header
+  // and chip figures (`totals`), and the table itself (`shown`) all read the same
+  // rows. Reducing the totals over the unfiltered list is how a plan gets a footer
+  // that adds up work its own table refuses to show.
+  //
+  // What the rule takes out is counted and said out loud below the toolbar, because a
+  // plan that quietly gets shorter is indistinguishable from a shop that got busy.
+  const planned = useMemo(() => (rows ? rows.filter((r) => r.current) : null), [rows]);
+  const offRange = rows && planned ? rows.length - planned.length : 0;
+
+  const totals = useMemo(() => (planned ? summariseSchedule(planned) : null), [planned]);
+  const counts = useMemo(() => (planned ? bucketCounts(planned) : null), [planned]);
+  const shown = useMemo(() => (planned ? filterSchedule(planned, filter) : []), [planned, filter]);
 
   const selected = useMemo(
     () => (selectedId === null ? null : (shown.find((r) => r.id === selectedId) ?? null)),
@@ -377,9 +390,20 @@ export function Schedule() {
             ) : null}
           </div>
 
+          {offRange > 0 ? (
+            // The plan is a statement about what the shop makes. The promises this
+            // rule left out are still money the shop owes, so they are named, counted
+            // and pointed at the screen that holds them rather than disappearing.
+            <p data-schedule-offrange className="text-xs text-ink3">
+              {formatNumber(offRange, 0)} {offRange === 1 ? 'row' : 'rows'} for codes that are not in the
+              current range are not planned here. They are on the order book, still owed — the tick says
+              what we make, not what we have sold.
+            </p>
+          ) : null}
+
           {filtering ? (
             <p data-schedule-filtered className="text-xs text-ink2">
-              {formatNumber(shown.length, 0)} of {formatNumber(rows.length, 0)} rows
+              {formatNumber(shown.length, 0)} of {formatNumber(planned?.length ?? 0, 0)} rows
               {totals.undated > 0 && filter.bucket === 'all' && !filter.unplannedOnly
                 ? ` · ${formatNumber(totals.undated, 0)} with no start date sort after every dated row`
                 : ''}
@@ -403,13 +427,21 @@ export function Schedule() {
           empty={
             <EmptyState
               icon="jobs"
-              title={rows.length === 0 ? 'Nothing has to be made' : 'No row matches'}
+              title={
+                planned && planned.length === 0 && offRange > 0
+                  ? 'Nothing in the current range has to be made'
+                  : (planned?.length ?? 0) === 0
+                    ? 'Nothing has to be made'
+                    : 'No row matches'
+              }
               body={
-                rows.length === 0
-                  ? 'Every promise the export has is covered by stock or by work already on the racks, and the shop has not put anything on the plan itself. The moment something goes short it appears here.'
-                  : filter.query.trim() !== ''
-                    ? `Nothing on the plan matches “${filter.query.trim()}”. The plan only holds what the order book says is short, and what the shop has written down.`
-                    : 'The filter has taken everything out. Clear it to see the whole plan again.'
+                planned && planned.length === 0 && offRange > 0
+                  ? `The order book has ${formatNumber(offRange, 0)} ${offRange === 1 ? 'row' : 'rows'} short, but every one of them is a code that is not ticked on Products. Ticking a code says the shop makes it — until then nothing is planned for it, and the promises stay on the order book.`
+                  : (planned?.length ?? 0) === 0
+                    ? 'Every promise the export has for the current range is covered by stock or by work already on the racks, and the shop has not put anything on the plan itself. The moment something goes short it appears here.'
+                    : filter.query.trim() !== ''
+                      ? `Nothing on the plan matches “${filter.query.trim()}”. The plan only holds what the order book says is short, and what the shop has written down.`
+                      : 'The filter has taken everything out. Clear it to see the whole plan again.'
               }
               action={
                 filtering ? (

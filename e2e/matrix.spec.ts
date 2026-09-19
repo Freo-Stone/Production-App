@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { importBoth, openApp, signIn, waitForStockTable } from './support';
+import { importBoth, markAllCurrent, openApp, signIn, waitForStockTable } from './support';
 
 /**
  * The matrix on a real browser, over the shop's real export shapes.
@@ -17,20 +17,19 @@ import { importBoth, openApp, signIn, waitForStockTable } from './support';
 
 const isPhone = (): boolean => test.info().project.name === 'phone';
 
-/** Make the whole board current: the range is a decision, so the app ships none. */
-async function markAllCurrent(page: Page): Promise<void> {
-  await page.goto('/#/products');
-  const pickAll = page.getByRole('button', { name: /^Pick all/ });
-  await expect(pickAll).toBeVisible();
-  await pickAll.click();
-  await page.getByRole('button', { name: 'Mark current' }).click();
-  await expect(page.getByRole('button', { name: 'Apply to picked' })).toHaveCount(0);
-}
-
+/**
+ * The board the tests then drive.
+ *
+ * Making the range current is part of opening it: the tick is a decision the shop
+ * makes, not something an import decides, so a board that was never told would be
+ * empty — and an empty board passes a assertion that amounts to "a row exists".
+ */
 async function openBoard(page: Page): Promise<void> {
   await openApp(page, '/sources');
   await importBoth(page);
   await waitForStockTable(page);
+  // Nothing an import brings in is current until the shop says so, and a board with
+  // no rows in it would pass every assertion below by doing nothing.
   await markAllCurrent(page);
   await page.goto('/#/');
   await expect(page.getByRole('columnheader', { name: 'In stock' })).toBeVisible();

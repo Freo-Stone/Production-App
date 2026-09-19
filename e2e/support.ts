@@ -152,6 +152,28 @@ export async function importBoth(page: Page): Promise<void> {
 }
 
 /**
+ * Tick every code the Products screen is showing, through the screen's own controls.
+ *
+ * Nothing in an import is current: the tick is the shop's decision, and the app will
+ * not make it. So any test that wants a planning screen to have rows — the Matrix,
+ * the making plan — has to say so first, the way the owner does, by picking the rows
+ * and pressing Mark current. A spec that imports and then expects a plan is a spec
+ * that quietly tests an empty screen.
+ *
+ * "Pick all" picks the rows in front of you, which on Products is the open-jobs view
+ * — exactly the codes a planning screen can put a row for, so the whole range a board
+ * could show is what gets ticked.
+ */
+export async function markAllCurrent(page: Page): Promise<void> {
+  await page.goto('/#/products');
+  const pickAll = page.getByRole('button', { name: /^Pick all/ });
+  await expect(pickAll).toBeVisible();
+  await pickAll.click();
+  await page.getByRole('button', { name: 'Mark current' }).click();
+  await expect(page.getByRole('button', { name: 'Apply to picked' })).toHaveCount(0);
+}
+
+/**
  * Find one code in the Products grid. The filter box is the shop's own way in, so
  * a test that needs one row filters for it instead of scrolling for it.
  */
@@ -172,7 +194,12 @@ export async function enableProduct(page: Page, code: string): Promise<void> {
   await searchProducts(page, code);
   const box = productCell(page, code, 'enabled').locator('[role="checkbox"]');
   await expect(box).toBeVisible();
-  await box.click();
+  // Press it only when it is off. This helper means "make this code current", and a
+  // spec that has already ticked the range (`markAllCurrent`) and then calls it was
+  // switching the code *off* instead — which took its row off the plan halfway through
+  // a test that was reading that row. The closing assertion is the postcondition, so a
+  // code that will not tick still fails the test rather than the next one.
+  if ((await box.getAttribute('aria-checked')) !== 'true') await box.click();
   await expect(box).toHaveAttribute('aria-checked', 'true');
 }
 

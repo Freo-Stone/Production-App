@@ -55,6 +55,9 @@ export function Curing() {
   const lines = useLiveQuery(() => db.lines.filter((l) => !l.deleted).sortBy('rank'), []);
   // Same shape the Daily entry screen uses — `sortBy('rank')` rather than a bare
   // `toArray()`, which is the form Dexie's live query can re-run on a change.
+  // Whole range on purpose: this is a code -> description/unit lookup for racks that
+  // exist, not a list of what we plan to make. A rack made under a code that is off
+  // the range today still has to read properly here. See `core/currentRange`.
   const products = useLiveQuery(() => db.products.filter((p) => !p.deleted).sortBy('rank'), []);
 
   const byCode = useMemo(() => new Map((products ?? []).map((p) => [p.code, p])), [products]);

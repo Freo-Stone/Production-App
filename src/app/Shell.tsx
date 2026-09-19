@@ -7,6 +7,7 @@ import { useTheme } from '@/app/theme';
 import { NAV, MOBILE_TAB_PATHS, navByPath, NAV_GROUPS, navVisible, type NavItem } from '@/app/nav';
 import { useUi } from '@/app/uiState';
 import { accountFailureText, setPasscode, signOut } from '@/data/accounts';
+import { isCurrentProduct } from '@/core/currentRange';
 import { passcodeAdvice, passcodeAccepted } from '@/core/passcode';
 import { ROLE_LABEL } from '@/core/roles';
 import { db } from '@/data/db';
@@ -393,7 +394,9 @@ function AccountMenu() {
 
 function FirstRunBanner() {
   const route = useRoute();
-  const products = useLiveQuery(() => db.products.filter((p) => !p.deleted && p.enabled).count(), [], 0);
+  // The same predicate the boards use: the banner is asking "has anyone decided what
+  // we make yet?", which is one question with one answer, not two that can drift.
+  const products = useLiveQuery(() => db.products.filter(isCurrentProduct).count(), [], 0);
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem('freo.firstRunDismissed') === '1');
   if (dismissed || products > 0 || route.path === '/sources') return null;
   return (

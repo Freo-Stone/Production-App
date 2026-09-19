@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useCan } from '@/app/session';
 import { navigate } from '@/app/router';
 import { useView } from '@/app/useView';
+import { currentProducts } from '@/core/currentRange';
 import { defaultView, SCREENS } from '@/core/defaults';
 import {
   cellLines,
@@ -109,9 +110,13 @@ export function Matrix() {
 
   const rows = useMemo<MatrixRow[]>(() => {
     if (!products || !settings || days.length === 0) return [];
-    const enabled = products.filter((p) => p.enabled);
+    // The one predicate, once, here. Nothing unticked gets a row — and every figure
+    // on this board is a column total or a chip count reduced over `rows`, so cutting
+    // the rows here is what makes the totals move with them. A footer that added up a
+    // product the board refuses to list is the failure this rule exists to stop.
+    const range = currentProducts(products);
     const out = matrixRows({
-      products: enabled,
+      products: range,
       jobs: jobs?.rows ?? [],
       stockRows: stock?.rows ?? [],
       batches: batches ?? [],
@@ -162,7 +167,7 @@ export function Matrix() {
   }, [rows]);
 
   const nothingImported = (stock?.rows.length ?? 0) === 0 && (jobs?.rows.length ?? 0) === 0;
-  const nothingEnabled = (products ?? []).filter((p) => p.enabled && !p.deleted).length === 0;
+  const nothingEnabled = currentProducts(products ?? []).length === 0;
 
   const selected = open ? rows.find((r) => r.code === open.code) ?? null : null;
 

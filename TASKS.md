@@ -1463,3 +1463,63 @@ Design still worth doing properly when there is room: pin the scroll box
 basis, so the spacer can never inflate an ancestor in any regime. That removes the class of
 bug instead of this instance, but it moves the sticky header, the horizontal scrollbar and
 the resize handles, so it has to be gated like the DataTable change it is.
+
+## One rule for "a product we make" — the current range (`core/currentRange.ts`)
+
+The shop owner said it in one line: *unless checked as a current product do not include in any
+table throughout the app*. It had been applied five times in five different ways, none of them
+by the same test, which is how a screen ends up with a row the Products screen says we do not
+make. There is now one predicate — `isCurrentProduct(product)` in `src/core/currentRange.ts`,
+`product != null && product.deleted !== true && product.enabled === true` — plus
+`currentProducts(list)` and `currentCodeSet(list)` beside it, and every screen that lists
+products by code goes through them. The field is called `enabled` and the shop's word is
+"current"; the mismatch is recorded in the module doc and in `core/types.ts`, which now says
+the flag is read through this predicate and never by hand.
+
+**Where it cuts.** The Matrix takes its rows from `currentProducts(products)` once, so 2,367
+imported codes become the ~134 the shop runs, and every figure on the board — column totals, the
+"short / curing" chip, the row count in the footer — is a reduction over those rows, so it moves
+with them; there is no second list to fall out of step. The plan does the same in one place:
+`core/schedule.ts` tags each row with `current` and `src/screens/Schedule.tsx` narrows once to
+`planned`, then takes the header figures, the bucket chips and the table from that one list, so a
+chip's number is by construction the number of rows it shows. The Daily entry picker offers
+`pickable` = the range and nothing else; a picker of 2,367 codes is a picker nobody can find a
+code in.
+
+**Where it must not cut, and why.** Two places are exempt, deliberately, and both are marked
+rather than filtered. The **order book** is work already sold: the export holds 414 open lines
+against 134 ticked codes, so filtering it would delete most of what the shop owes and settle
+debts nobody paid. Every line stays, `buildJobLines` gains a per-line `current` alongside the
+existing `ours` (two different questions: is it our code, is it in this month's range), and the
+column reads `ours` / `not current` / `not ours`. `summariseJobs` counts `notCurrent` +
+`unknownCodes` and publishes their sum as `outsideRange`, so the chip and the sentence under the
+table quote the same pair and cannot each add up something else. The **production log, the racks
+and the Friday MYOB queue** are the record of what was made: a rack made under a code that was
+unticked last week still has to read, cure, blast and get keyed into MYOB, so those screens read
+the whole range for their code→description lookups and never consult the tick.
+
+**The boundary that is not a filter.** Products keeps listing every code — it is where the tick
+gets set, and a list filtered by the tick is a code you cannot untick again; its default filter
+stays "In open jobs". Daily entry is the one screen where the two halves of the rule meet: the
+picker is the range, but a row can still be *holding* an off-range code (the Matrix sends one
+over with "Log making of this", and a board opened before the tick changed can hand over a code
+that is no longer in the range). It is refused, and it now says why — the row used to answer
+"pick a product" to somebody who had plainly picked one, and then found the picker did not offer
+it. It names the code, says it is not a make, and points at Products. Racks already logged that
+day are untouched, and `recordEntry` still resolves drafts against every known code, so a day's
+count can never be thrown away by a tick moving under somebody's feet.
+
+**Tests moved, and which premise they had.** `test/core.currentRange.test.ts` (predicate, and
+that the book marks while the plan cuts) and `test/ui.currentRange.test.tsx` (each screen's row
+set against each screen's totals, clock-pinned like `ui.myob.test.tsx`) are new. Five assertions
+in `test/ui.schedule.test.tsx` asserted the old rule and were rewritten, each one disclosed with
+its reason: a promise for a code the device has never seen used to appear as an undated plan row,
+so the fixture's counts went 4 → 3 in three tests ("shows exactly what each chip says it will",
+"leaves only what nobody has planned, once asked", "clears itself") and its "1 of 4 rows" became
+"1 of 3 rows"; the "no lead time" test clicked a row for a code that is now off the plan, so it
+became two tests — one that the row is gone *and counted* by the new `[data-schedule-offrange]`
+line, one that a plan line with no promise still explains itself. No threshold was loosened to
+make a browser test pass. In the browser specs the imports no longer imply a plan:
+`markAllCurrent(page)` moved from `matrix.spec.ts` into `e2e/support.ts` and is called by the
+schedule and shots specs after `importBoth`, because a spec that imports and then expects a plan
+is a spec quietly asserting on an empty screen.

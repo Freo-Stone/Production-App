@@ -1,5 +1,6 @@
 import type { Batch, JobRow, Product, ProductUnit, Settings, StockRow } from '@/core/types';
 import { isExcludedJob, isFarFuture, productPosition } from '@/core/calc';
+import { isCurrentProduct } from '@/core/currentRange';
 import { dayStart, diffDays } from '@/core/dates';
 import { round } from '@/core/format';
 
@@ -13,6 +14,17 @@ import { round } from '@/core/format';
  * way `productPosition` counts availability everywhere else in the app — stock on
  * hand, plus what is being made, plus what has been keyed into MYOB and not yet
  * come back out of an export.
+ *
+ * **This screen does not filter by the current range, on purpose.** The tick on
+ * Products answers *what we plan to make*; an order line answers *what we have
+ * already sold*, and the two are not the same list — the book holds 414 open lines
+ * while 134 codes are ticked. Hiding a line because its code is unticked would make
+ * most of the shop's obligations vanish from the one screen whose job is to show
+ * them, so every line stays and the ones outside the range are **marked** instead
+ * (`current`, and the `notCurrent` / `outsideRange` counts). That is the same
+ * treatment the screen already gave a code it did not recognise, which is why the
+ * existing `ours` rule was extended rather than a second kind of "unknown" invented
+ * beside it. Planning screens — the Matrix and the plan — filter; this one annotates.
  *
  * The one real decision here is **allocation**. Stock and in-progress work belong
  * to a code, not to an order line, and the same code is usually promised to three
@@ -43,6 +55,16 @@ export interface JobLineView extends JobRow {
   excluded: boolean;
   /** The code is one of ours on this device, so the cover figures mean anything. */
   ours: boolean;
+  /**
+   * The code is in the current range — ours **and** ticked on Products.
+   *
+   * `ours` and `current` are different questions and are kept apart deliberately: a
+   * code the device has never seen has no cover figures to compare against, while a
+   * code it knows with the tick off has perfectly good figures and simply is not
+   * something we plan to make again. Both read the same way on the board — outside
+   * the current range — and neither hides the line.
+   */
+  current: boolean;
   unit: ProductUnit | null;
   /** What the whole shop can point at for this code: stock, work in progress, keyed-not-yet-exported. */
   available: number;
@@ -116,6 +138,7 @@ export function buildJobLines(input: JobBoardInput): JobLineView[] {
       farFuture: isFarFuture(promised, input.settings, now),
       excluded: isExcludedJob(job, input.settings),
       ours: product !== null && !product.deleted,
+      current: isCurrentProduct(product),
       unit: product && !product.deleted ? product.unit : null,
       available: round(available, 2),
       covered: 0,
@@ -228,6 +251,16 @@ export interface JobTotals {
   farFuture: number;
   /** Lines whose code is not one of ours — no cover figures for those. */
   unknownCodes: number;
+  /** Lines whose code is ours but has the tick off: sold, and not in the current range. */
+  notCurrent: number;
+  /**
+   * Lines outside the current range, for either reason — the number the footer quotes.
+   *
+   * Kept as its own count rather than left for the screen to add, so the sentence
+   * under the table cannot end up summing a slightly different pair of things from
+   * the two chips beside it.
+   */
+  outsideRange: number;
   /** Lines on a ship-via the shop leaves out of demand. */
   excluded: number;
   /** Distinct customers, so the header can say what "1,553 lines" is spread over. */
@@ -245,6 +278,8 @@ export function summariseJobs(lines: JobLineView[]): JobTotals {
     shortQty: 0,
     farFuture: 0,
     unknownCodes: 0,
+    notCurrent: 0,
+    outsideRange: 0,
     excluded: 0,
     customers: 0,
     codes: 0,
@@ -260,6 +295,8 @@ export function summariseJobs(lines: JobLineView[]): JobTotals {
     }
     if (line.excluded) totals.excluded += 1;
     if (!line.ours) totals.unknownCodes += 1;
+    else if (!line.current) totals.notCurrent += 1;
+    if (!line.current) totals.outsideRange += 1;
     if (line.short > 0 && !line.farFuture) {
       totals.shortLines += 1;
       totals.shortQty = round(totals.shortQty + line.short, 2);

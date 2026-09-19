@@ -64,6 +64,11 @@ export function MyobEntry() {
   const captured = useLiveQuery(() => stockCapturedAt(), []);
   const settings = useLiveQuery(() => getSettings(), []);
   const lines = useLiveQuery(() => db.lines.filter((l) => !l.deleted).sortBy('rank'), []);
+  // Every code this device knows, and deliberately not narrowed to the current range.
+  // This queue is work the shop has already made and has to be paid for: a rack cured
+  // under a code that is off the range today still gets keyed into MYOB, and filtering
+  // it here would turn finished work into stock nobody can invoice. Planning screens
+  // filter by the tick (`core/currentRange`); the log and the queue do not.
   const products = useLiveQuery(() => db.products.filter((p) => !p.deleted).sortBy('rank'), []);
 
   const byCode = useMemo(() => new Map((products ?? []).map((p) => [p.code, p])), [products]);

@@ -332,19 +332,53 @@ describe('pressing a row', () => {
     expect(detailCard(view)?.textContent).toContain('ago');
   });
 
-  it('says plainly when a code has no lead time to work from', async () => {
+  // Rewritten 2026-09-19 for the current-range rule, and the rewrite is disclosed
+  // rather than slipped through: this test used to click a row for `ZZ9` — a code this
+  // device has never seen — and read its start date off it. A code outside the range
+  // is not a make the shop has decided to make, so it is no longer a row at all, and
+  // an assertion about a row that cannot exist is not a test of anything. The two
+  // halves below keep both decisions honest: the row that is gone stays counted, and
+  // the row that stays (a code we make, with no route chosen) still explains itself.
+  it('keeps a code outside the range off the plan, and says how many it left out', async () => {
     const view = await open({
       products: [product('GL4')],
-      jobs: [job('SO-9', { itemCode: 'ZZ9', id: 'ZZ9|SO-9', promisedDate: promisedOn(4), qty: 6 })],
+      jobs: [
+        job('SO-9', { itemCode: 'ZZ9', id: 'ZZ9|SO-9', promisedDate: promisedOn(4), qty: 6 }),
+        job('SO-10', { promisedDate: promisedOn(4), qty: 8 }),
+      ],
     });
-    click(rowFor(view, 'ZZ9'));
-    await settle();
 
+    // The short promise the shop does not make is not a row, and cannot be pressed.
+    expect(rowTexts(view).join(' / ')).not.toContain('ZZ9');
+    expect(rowCount(view)).toBe(1);
+    // It is not quietly missing either: the screen counts it and points at the book.
+    expect(view.host.querySelector('[data-schedule-offrange]')?.textContent).toContain('1 row');
+    expect(view.host.querySelector('[data-schedule-offrange]')?.textContent).toContain('order book');
+  });
+
+  it('says plainly when a plan line has no date to work from', async () => {
+    await seed({
+      // Stock enough to cover the promise, so the only row on the plan is the line.
+      products: [product('GL4')],
+      stock: [stockRow('GL4', 100)],
+      jobs: [job('SO-11', { promisedDate: promisedOn(4), qty: 8 })],
+    });
+    signInForTests('owner');
+    // A make the shop wrote down for no particular promise: nothing to date a lead
+    // time backwards from, which is the one way a row of a code we do make can end up
+    // undated now that a code outside the range is off the plan altogether.
+    await addPlanItem({ code: 'GL4', qty: 6, promisedFor: null });
+
+    const view = mount(<Schedule />);
+    await settle();
+    expect(chipNumber(view, 'undated')).toBe(1);
+
+    click(rowFor(view, 'GL4'));
+    await settle();
     const card = detailCard(view);
-    expect(card?.textContent).toContain('no start date');
-    // And it does not offer to plan something it cannot date.
+    expect(card?.textContent).toContain('There is no start date for GL4 to work from');
+    // It cannot be "put on the plan" again — it is already there.
     expect(card?.querySelector('[data-schedule-add]')).toBeNull();
-    expect(card?.textContent).toContain('no cure time or route yet');
   });
 });
 
@@ -485,6 +519,8 @@ describe('the chips and the filters', () => {
       job('SO-1', { promisedDate: promisedOn(1), qty: 4 }),
       job('SO-2', { promisedDate: promisedOn(4), qty: 8 }),
       job('SO-3', { itemCode: 'B2', id: 'B2|SO-3', promisedDate: promisedOn(20), qty: 3 }),
+      // A promise for a code outside the current range. It is on the order book and
+      // not on the plan, so every count in this block is three rows and one left out.
       job('SO-4', { itemCode: 'ZZ9', id: 'ZZ9|SO-4', promisedDate: promisedOn(5), qty: 2 }),
     ],
   });
@@ -498,7 +534,8 @@ describe('the chips and the filters', () => {
       later: chipNumber(view, 'later'),
       undated: chipNumber(view, 'undated'),
     };
-    expect(expected.all).toBe(4);
+    expect(expected.all).toBe(3);
+    expect(view.host.querySelector('[data-schedule-offrange]')?.textContent).toContain('1 row');
 
     for (const bucket of ['behind', 'week', 'later', 'undated'] as const) {
       pressChip(view, bucket);
@@ -516,14 +553,16 @@ describe('the chips and the filters', () => {
 
     const view = mount(<Schedule />);
     await settle();
-    // Four promises short, one of them now planned: the plan line plus three gaps.
-    expect(rowCount(view)).toBe(4);
+    // Three promises short, one of them now planned: the plan line plus two gaps. The
+    // fourth promise the fixture holds is for a code outside the range and is not on
+    // the plan at all — see `mixed()` above.
+    expect(rowCount(view)).toBe(3);
 
     click(buttonNamed(view.host, 'Nobody has planned it'));
     await settle();
-    expect(rowCount(view)).toBe(3);
+    expect(rowCount(view)).toBe(2);
     expect(rowTexts(view).every((t) => t.includes('not yet'))).toBe(true);
-    expect(says(view)).toContain('3 of 4 rows');
+    expect(says(view)).toContain('2 of 3 rows');
   });
 
   it('says how much a search took out', async () => {
@@ -532,7 +571,7 @@ describe('the chips and the filters', () => {
     await settle();
 
     expect(rowCount(view)).toBe(1);
-    expect(view.host.querySelector('[data-schedule-filtered]')?.textContent).toContain('1 of 4 rows');
+    expect(view.host.querySelector('[data-schedule-filtered]')?.textContent).toContain('1 of 3 rows');
     expect(says(view)).toContain('B2');
 
     typeInto(view.host.querySelector('[data-schedule-search]') as Element, 'nothing like this');
@@ -548,7 +587,7 @@ describe('the chips and the filters', () => {
 
     click(buttonNamed(view.host, 'Clear'));
     await settle();
-    expect(rowCount(view)).toBe(4);
+    expect(rowCount(view)).toBe(3);
     expect(view.host.querySelector('[data-schedule-filtered]')).toBeNull();
   });
 });

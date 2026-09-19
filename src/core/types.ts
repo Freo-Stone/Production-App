@@ -18,7 +18,12 @@ export interface Product {
   /** MYOB item number, e.g. `S3`. Immutable identity — also the merge key. */
   code: string;
   description: string;
-  /** Only enabled products appear in the matrix or in planning maths. */
+  /**
+   * The shop's tick: this code is one the shop makes. Read it through
+   * `isCurrentProduct` in `core/currentRange`, never by hand — the whole point of
+   * that predicate is that the Matrix, the plan and the entry picker cannot each
+   * decide for themselves what "current" means.
+   */
   enabled: boolean;
   route: ProductRoute;
   /**

@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useRoute, setQueryParam } from '@/app/router';
 import { useCan } from '@/app/session';
 import { entryTotals, resolveEntryRows, canUndo, STAGE_LABELS, type EntryDraft } from '@/core/batches';
+import { currentProducts, isCurrentProduct } from '@/core/currentRange';
 import { addDays, dayStart, formatDayFull, isSameDay, relativeDays } from '@/core/dates';
 import { formatQty } from '@/core/format';
 import { uid } from '@/core/ids';
@@ -83,8 +84,15 @@ export function Entry() {
     if (line !== undefined) localStorage.setItem(LINE_KEY, line.id);
   }, [line?.id]);
 
+  // Every code this device knows, for the lookups beside the picker: a rack logged
+  // last month under a code that is off the range today still has to read with its
+  // own description and unit. Filtering this map would bare the code out of the log.
   const byCode = useMemo(() => new Map((products ?? []).map((p) => [p.code, p])), [products]);
-  const pickable = useMemo(() => (products ?? []).filter((p) => p.enabled), [products]);
+  // The picker is the current range and nothing else. Out of 2,367 imported codes the
+  // floor is offered the ~134 the shop actually makes: a list of everything is a list
+  // nobody can find a code in, and an unticked code is not something we make — so it
+  // is not offered, and `resolveEntryRows` refuses it below for the same reason.
+  const pickable = useMemo(() => currentProducts(products ?? []), [products]);
 
   const used = rows.filter(isUsed);
   const resolved = useMemo(() => resolveEntryRows(used, pickable), [used, pickable]);
@@ -229,6 +237,11 @@ export function Entry() {
             {rows.map((row) => {
               const entry = resolved.find((l) => l.draft.key === row.key);
               const product = entry?.product ?? byCode.get(row.code);
+              // A row can still be holding a code that has come off the range — typed
+              // this morning, un-ticked after lunch. The picker offers the range; the
+              // row keeps showing what it holds and says what it is, rather than going
+              // blank on somebody standing at the moulder with wet hands.
+              const offRange = product !== undefined && !isCurrentProduct(product) ? product : null;
               return (
                 <div
                   key={row.key}
@@ -243,6 +256,14 @@ export function Entry() {
                     options={[
                       { value: '', label: 'Choose a product…' },
                       ...pickable.map((p) => ({ value: p.code, label: `${p.code} — ${p.description}` })),
+                      ...(offRange
+                        ? [
+                            {
+                              value: offRange.code,
+                              label: `${offRange.code} — ${offRange.description} (not in the current range)`,
+                            },
+                          ]
+                        : []),
                     ]}
                   />
                   <NumberInput
@@ -266,9 +287,20 @@ export function Entry() {
                       onClick={() => setRows((prev) => (prev.length === 1 ? [blankRow()] : prev.filter((r) => r.key !== row.key)))}
                     />
                   ) : null}
-                  {entry && entry.problem !== null ? (
+                  {/* Two different refusals, and only one of them shown per row: a code
+                      that needs its trays or its route, and a code the shop has not said
+                      it makes. The second one used to come out as "pick a product" from
+                      a row that had plainly picked one, which sent somebody to the
+                      picker to find the code missing and no word why. */}
+                  {entry && entry.problem !== null && offRange === null ? (
                     <p className="w-full text-xs text-warn" data-entry-problem={row.key}>
                       {entry.problem}
+                    </p>
+                  ) : null}
+                  {offRange !== null ? (
+                    <p className="w-full text-xs text-warn" data-entry-offrange={row.key}>
+                      {offRange.code} is not in the current range, so it is not a make and cannot be logged.
+                      Tick it on Products if the shop has started making it again.
                     </p>
                   ) : null}
                 </div>

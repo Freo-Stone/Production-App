@@ -36,7 +36,46 @@ import { Button, Card, Chip, EmptyState, TextInput, cx } from '@/ui/primitives';
  *
  * It reads and never writes. Nothing here changes an order: the export is the
  * record, and the shop's own figures come from the other screens.
+ *
+ * **This is one of the two screens the current-range rule does not cut.** The tick on
+ * Products says what the shop plans to make; this screen is about what the shop has
+ * already sold, and the two lists are far apart — 414 open lines against 134 ticked
+ * codes, so filtering this table by the tick would remove most of the shop's
+ * obligations from the only screen built to show them. Money owed to a customer does
+ * not stop being owed because a code was unticked. So every line stays, and the ones
+ * outside the range are marked in the way an unknown code already was: the same column,
+ * the same tone, the same "still all of it stands as owed", plus a count under the
+ * table so nobody reads a covered line as a promise the shop has forgotten.
  */
+
+/**
+ * Which side of the tick a line's code sits on, and what the row says about it.
+ *
+ * `not current` and `not ours` are different facts — one has cover figures the shop
+ * can trust, the other has none — but they get the same treatment on the board, which
+ * is why they are one column and one tone rather than two new concepts beside the
+ * "not one of ours" rule the screen already had.
+ */
+type CodeRange = 'current' | 'notCurrent' | 'unknown';
+
+const RANGE_LABEL: Record<CodeRange, string> = {
+  current: 'ours',
+  notCurrent: 'not current',
+  unknown: 'not ours',
+};
+
+const RANGE_HINT: Record<CodeRange, string> = {
+  current: 'In the current range: ticked on Products, so the shop plans to make it.',
+  notCurrent:
+    'On this device but not ticked on Products, so it is not something the shop plans to make. The order is still owed, and the cover figures still count — the tick is about tomorrow, not about what has already been sold.',
+  unknown:
+    'This device has never seen the code, so there is nothing to compare the order against and all of it stands as owed. A bought-in item, or a code the export has and Products does not.',
+};
+
+function rangeOf(line: JobLineView): CodeRange {
+  if (line.current) return 'current';
+  return line.ours ? 'notCurrent' : 'unknown';
+}
 
 const COLUMNS: ColumnDef<JobLineView>[] = [
   {
@@ -109,10 +148,19 @@ const COLUMNS: ColumnDef<JobLineView>[] = [
   {
     key: 'ours',
     header: 'Ours?',
-    value: (r) => (r.ours ? 'ours' : 'not ours'),
-    width: 90,
+    // Three words, two of them marked. Sorting is on the word, so `not current` and
+    // `not ours` sort apart — a shop that wants the unticked ones in a pile can get
+    // them with one press on the header.
+    value: (r) => RANGE_LABEL[rangeOf(r)],
+    width: 104,
     totals: 'none',
-    headerHint: 'Codes that are not products on this device have nothing to compare against, so all of them stands as owed.',
+    tone: (r) => (r.current ? null : 'warn'),
+    render: (r) => {
+      const range = rangeOf(r);
+      return <span title={RANGE_HINT[range]}>{RANGE_LABEL[range]}</span>;
+    },
+    headerHint:
+      'Whether the code is in the current range. A code that is not one of ours has nothing to compare against, and one that is ours but is not ticked is not something we plan to make — either way the line stays on this screen, because it has been sold and is still owed.',
   },
   { key: 'shipVia', header: 'Ship via', value: (r) => r.shipVia, width: 110 },
   { key: 'salesperson', header: 'Sales', value: (r) => r.salesperson, width: 120 },
@@ -229,6 +277,18 @@ export function FutureJobs() {
                 everything covered
               </Chip>
             )}
+            {totals.outsideRange > 0 ? (
+              <Chip
+                tone="info"
+                data-jobs-offrange-chip
+                title={`${formatNumber(totals.notCurrent, 0)} of these lines are codes this device knows with the tick off on Products, and ${formatNumber(
+                  totals.unknownCodes,
+                  0,
+                )} are codes it has never seen. They are shown because this screen is about what has been sold, not about what we plan to make.`}
+              >
+                {formatNumber(totals.outsideRange, 0)} outside the range
+              </Chip>
+            ) : null}
             {totals.pastDue > 0 ? (
               <Chip tone="short" title="Promised already and still open. The Matrix starts at today, so these are only ever seen here.">
                 {formatNumber(totals.pastDue, 0)} {totals.pastDue === 1 ? 'line' : 'lines'} late
@@ -319,6 +379,18 @@ export function FutureJobs() {
             </p>
           ) : null}
 
+          {totals.outsideRange > 0 ? (
+            // Said in the open, above the table: the marked rows are not a bug in the
+            // range, and the figure next to them is not missing money.
+            <p data-jobs-offrange className="text-xs text-ink3">
+              {formatNumber(totals.outsideRange, 0)} of these {formatNumber(totals.lines, 0)} lines are codes
+              outside the current range — {formatNumber(totals.notCurrent, 0)} ticked off on Products and{' '}
+              {formatNumber(totals.unknownCodes, 0)} the export has that this device does not. They are all
+              shown, and all still counted as owed: the tick decides what the shop plans to make, not what it
+              has already sold.
+            </p>
+          ) : null}
+
           {filtering ? (
             <p data-jobs-filtered className="text-xs text-ink2">
               {formatNumber(shown.length, 0)} of {formatNumber(lines.length, 0)} lines
@@ -406,33 +478,46 @@ export function FutureJobs() {
                 owed. It may be a bought-in item, or a code the export has and this device has never seen.
               </p>
             ) : (
-              <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
-                <Figure label="Stock on hand" value={detail.breakdown.stock} unit={detail.product.unit} />
-                <Figure
-                  label="On the racks"
-                  value={detail.breakdown.curing + detail.breakdown.awaitingBlast + detail.breakdown.blasting}
-                  unit={detail.product.unit}
-                />
-                <Figure
-                  label="Ready to go"
-                  value={detail.breakdown.ready}
-                  unit={detail.product.unit}
-                  hint={detail.breakdown.countedReady ? 'counted as available' : 'not counted until it is exported'}
-                />
-                <Figure
-                  label="Keyed into MYOB"
-                  value={detail.breakdown.keyedNotExported}
-                  unit={detail.product.unit}
-                  hint="entered since the last export"
-                />
-                <Figure label="Whole shop" value={detail.breakdown.available} unit={detail.product.unit} />
-                <Figure
-                  label="This line takes"
-                  value={selected.covered}
-                  unit={detail.product.unit}
-                  hint={selected.short > 0 ? `still needs ${formatNumber(selected.short, 2)}` : 'covered'}
-                />
-              </ul>
+              <>
+                {/* A code the shop has unticked gets the same plain statement the
+                    unknown code gets: the figures below are real, and the order is
+                    still owed, whatever the tick says about next month. */}
+                {selected.current ? null : (
+                  <p className="text-sm text-ink2" data-jobs-detail-offrange>
+                    <span className="font-600">{selected.itemCode}</span> is not in the current range — it is on
+                    this device with the tick off on Products, so the shop is not planning to make it. The order
+                    is still owed, and the figures below still count, because the tick says what we make from now
+                    on and not what was already sold.
+                  </p>
+                )}
+                <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+                  <Figure label="Stock on hand" value={detail.breakdown.stock} unit={detail.product.unit} />
+                  <Figure
+                    label="On the racks"
+                    value={detail.breakdown.curing + detail.breakdown.awaitingBlast + detail.breakdown.blasting}
+                    unit={detail.product.unit}
+                  />
+                  <Figure
+                    label="Ready to go"
+                    value={detail.breakdown.ready}
+                    unit={detail.product.unit}
+                    hint={detail.breakdown.countedReady ? 'counted as available' : 'not counted until it is exported'}
+                  />
+                  <Figure
+                    label="Keyed into MYOB"
+                    value={detail.breakdown.keyedNotExported}
+                    unit={detail.product.unit}
+                    hint="entered since the last export"
+                  />
+                  <Figure label="Whole shop" value={detail.breakdown.available} unit={detail.product.unit} />
+                  <Figure
+                    label="This line takes"
+                    value={selected.covered}
+                    unit={detail.product.unit}
+                    hint={selected.short > 0 ? `still needs ${formatNumber(selected.short, 2)}` : 'covered'}
+                  />
+                </ul>
+              </>
             )}
 
             <p className="text-xs text-ink3">

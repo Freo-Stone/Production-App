@@ -43,6 +43,13 @@ import { useIsCoarsePointer, useIsCompact } from '@/app/useMediaQuery';
  *
  * Nothing here can be changed. The log is append-only by design, and a screen that
  * reads it must not offer to edit it.
+ *
+ * This is the second of the two screens the current-range rule does not cut (the first
+ * is the order book). A line here records something that happened to a code — a rack
+ * made, a rack moved, a batch keyed into MYOB — and un-ticking a code on Products does
+ * not un-make it. The rule lives in `src/core/currentRange.ts` and reaches the boards
+ * that decide what to make next; it does not reach back into the record of what was
+ * made, which is why this screen reads ledger lines and never consults the tick.
  */
 
 const FAMILY_ICON: Record<LedgerFamily, IconName> = {

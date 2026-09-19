@@ -3,10 +3,12 @@ import {
   enableProduct,
   expect,
   importBoth,
+  markAllCurrent,
   openApp,
   searchProducts,
   setProductRoute,
   test,
+  waitForStockTable,
 } from './support';
 
 /**
@@ -35,6 +37,11 @@ const rowsOn = (page: Page) => page.locator('.dt-row');
 async function withExports(page: Page, route = '/schedule', heading = 'The making plan'): Promise<void> {
   await openApp(page, '/sources');
   await importBoth(page);
+  await waitForStockTable(page);
+  // A code is not a make until the shop ticks it, and the plan is built from the tick.
+  // Ticking them all is the shop's own first-run step; which codes are short stays the
+  // export's business, so nothing here hard-codes a code or a quantity.
+  await markAllCurrent(page);
   await page.goto(`/#${route}`);
   await expect(page.getByRole('heading', { name: heading })).toBeVisible();
 }

@@ -4,6 +4,7 @@ import { useCan } from '@/app/session';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useView } from '@/app/useView';
 import { demandByProduct, productPosition } from '@/core/calc';
+import { currentProducts, isCurrentProduct } from '@/core/currentRange';
 import { defaultView, SCREENS } from '@/core/defaults';
 import { formatNumber, unitLabel } from '@/core/format';
 import type { Product, ProductRoute } from '@/core/types';
@@ -135,8 +136,12 @@ export function Products() {
   const shown = useMemo(() => {
     let out = rows;
     if (filter === 'due') out = out.filter((r) => r.seenInJobs || r.lines > 0);
-    if (filter === 'current') out = out.filter((r) => r.enabled);
-    if (filter === 'needs') out = out.filter((r) => r.enabled && missingSetup(r).length > 0);
+    // Asked through the predicate, so the list called "Current range" here is the
+    // same set of codes every planning screen plans. The default filter stays what it
+    // was — what is on order — because this is the screen that sets the tick, and a
+    // list filtered by the tick is a code you cannot untick again.
+    if (filter === 'current') out = out.filter((r) => isCurrentProduct(r));
+    if (filter === 'needs') out = out.filter((r) => isCurrentProduct(r) && missingSetup(r).length > 0);
     if (filter === 'shotblast') out = out.filter((r) => r.route === 'shotblast');
     const q = search.trim().toLowerCase();
     if (q) out = out.filter((r) => `${r.code} ${r.description} ${r.notes}`.toLowerCase().includes(q));
@@ -146,9 +151,11 @@ export function Products() {
   const counts = useMemo(
     () => ({
       total: rows.length,
-      current: rows.filter((r) => r.enabled).length,
-      needs: rows.filter((r) => r.enabled && missingSetup(r).length > 0).length,
-      idle: rows.filter((r) => r.enabled && r.lines === 0).length,
+      // Same predicate as the boards, so the number beside this screen's name is the
+      // number the Matrix and the plan are working from.
+      current: currentProducts(rows).length,
+      needs: rows.filter((r) => isCurrentProduct(r) && missingSetup(r).length > 0).length,
+      idle: rows.filter((r) => isCurrentProduct(r) && r.lines === 0).length,
     }),
     [rows],
   );
