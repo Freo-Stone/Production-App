@@ -30,7 +30,7 @@ are in the current range, how many still need setting, how many are current with
 open job behind them — and the answer to being shown them was *"remove this from all
 pages, i do not need to see this."* So they are gone, and the board runs from the
 top of the screen to the bottom of the window: 249→664 of a 1280×720 window
-(`useFillBelow`, and `docs/screens/sources.md` for the whole contract).
+(the height chain is `docs/screens/sources.md`.
 
 What is left is what the counts were for: the filter picks the same sets — **In
 open jobs**, **Current range**, **Needs setting**, **Shotblast**, **All codes** —

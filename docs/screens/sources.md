@@ -44,10 +44,20 @@ behind it has 1px and 0px left to scroll respectively, and the card that holds i
 starts a quarter of the way down either screen. `e2e/layout.spec.ts` holds that
 quarter.
 
-The table's box is measured, not guessed. `useFillBelow` takes the distance from
-where the box starts to the bottom of the window, less the phone's bottom bar and
-any line of guidance underneath it, and re-measures when the window resizes, when
-a phone's URL bar appears, and when anything above it wraps onto another line.
+The table's box is inherited, not measured and not guessed. The shell is
+`h-dvh`, `main` is the scroll region (`min-h-0 overflow-y-auto`), and a
+`flex-1 min-h-0` chain through the card hands the grid whatever height the window
+has left. `useFillBelow` used to measure `innerHeight - top - gap` in JavaScript and
+write an inline pixel height, with a hand-typed gap per screen; that number was
+wrong on one side or the other for any window it was not drawn for, which is how a
+54px dead strip and unreachable rows were the *same* bug.
+
+The invariant to keep: **a grid stays a scroll box only while every height above it
+is definite.** Give the chain an auto height and the grid takes the height of the
+virtualised spacer — the 91,673px bug again from the opposite direction. That is
+also why a phone held sideways is handled in `src/styles/theme.css`: under
+`@media (max-height: 560px)` the page takes over and the wrapper takes a *definite*
+240px, so the shortfall becomes page scroll instead of rows hidden by the card.
 
 Both halves of that mattered. The height used to be a guess — `min(62vh, 620px)` —
 and the grid inside it grew to the height of every row it held: 91,673px for 1,102
