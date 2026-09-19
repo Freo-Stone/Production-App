@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_LINES, DEFAULT_SETTINGS } from '@/core/defaults';
 import { dayStart, formatDayFull, isoDate, nextWeekday } from '@/core/dates';
 import type { Batch, Product } from '@/core/types';
@@ -23,7 +23,17 @@ import { byText, click, render, settle, typeInto, type Rendered } from './suppor
  */
 
 const DAY = 86_400_000;
-const TODAY = dayStart(Date.now());
+/**
+ * The clock is pinned, and not for tidiness. This screen's job is "which run does this
+ * rack belong to", so its answers move with the day of the week the tests happen to
+ * run on: on a Saturday, last Friday's run is genuinely overdue and a rack that came
+ * ready on Tuesday joins it — correctly — so a test asserting "1 rack is overdue a run"
+ * reads 2 with nothing wrong but the calendar. Fixing the day fixes the test and leaves
+ * the rule alone. Wednesday 16 September 2026, 11am Perth: midweek, the shop's entry
+ * day still ahead of it.
+ */
+const CLOCK = Date.parse('2026-09-16T11:00:00+08:00');
+const TODAY = dayStart(CLOCK);
 const ENTRY_WEEKDAY = DEFAULT_SETTINGS.myobEntry.entryWeekday;
 
 function product(code: string, over: Partial<Product> = {}): Product {
@@ -123,7 +133,15 @@ const says = (text: string, root: Element = document.body): boolean => (root.tex
 const buttonIn = (name: string, root: Element = document.body): HTMLButtonElement | undefined =>
   [...root.querySelectorAll<HTMLButtonElement>('button')].find((b) => (b.textContent ?? '').includes(name));
 
-beforeEach(() => setMediaWidth(1280));
+beforeEach(() => {
+  // Only `Date` is faked, so the awaits in `settle` still run on real timers.
+  vi.useFakeTimers({ now: CLOCK, toFake: ['Date'] });
+  setMediaWidth(1280);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('the run', () => {
   it('says so when there is nothing to key', async () => {

@@ -18,6 +18,7 @@
     "e2e": "playwright test",
     "brand": "python3 scripts/make-brand.py",
     "check:build": "node scripts/check-build.mjs",
+    "build:server": "node scripts/build-server.mjs",
     "check:worker": "node scripts/probe-service-worker.mjs",
     "probe:typing": "node scripts/probe-typing.mjs",
     "probe:keystrokes": "node scripts/probe-keystroke-churn.mjs"

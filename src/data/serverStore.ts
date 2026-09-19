@@ -54,8 +54,15 @@ let healthPromise: Promise<ServerHealth | null> | null = null;
  * Pages — that is a 404, not a failure, and it is how the same build knows to use
  * the repository there.
  */
-export function detectStore(fetchImpl: FetchLike = globalFetch): Promise<ServerHealth | null> {
-  healthPromise ??= ask(fetchImpl);
+/**
+ * `base` is empty for the ordinary case — the app and the API come from the same
+ * origin, so every path is relative and there is nothing to remember. It exists
+ * because a build served from one place has to be able to talk to a shop server in
+ * another while a deployment is being tried out, and in Node a relative URL is not
+ * a URL at all.
+ */
+export function detectStore(fetchImpl: FetchLike = globalFetch, base = ''): Promise<ServerHealth | null> {
+  healthPromise ??= ask(fetchImpl, base);
   return healthPromise;
 }
 
@@ -64,11 +71,11 @@ export function forgetStoreProbe(): void {
   healthPromise = null;
 }
 
-async function ask(fetchImpl: FetchLike): Promise<ServerHealth | null> {
+async function ask(fetchImpl: FetchLike, base = ''): Promise<ServerHealth | null> {
   const signal = abortAfter(TIMEOUT_MS);
   if (!signal) return null;
   try {
-    const res = await fetchImpl(HEALTH, { method: 'GET', headers: { Accept: 'application/json' }, signal: signal.signal });
+    const res = await fetchImpl(`${base}${HEALTH}`, { method: 'GET', headers: { Accept: 'application/json' }, signal: signal.signal });
     if (res.status !== 200) return null;
     const body = jsonOf<Partial<ServerHealth>>(await res.text());
     // Anything that answers is not necessarily *our* server, so it has to say so.
@@ -104,11 +111,18 @@ export class ServerStore implements ShopStore {
   /** Exactly what the server last said the shop document was, character for character. */
   private raw = '';
 
+  /** Empty for the ordinary same-origin case; see the constructor. */
+  private readonly baseUrl: string;
+
   constructor(
     private readonly token: string,
     private readonly deviceName: string,
     private readonly fetchImpl: FetchLike = globalFetch,
-  ) {}
+    baseUrl = '',
+  ) {
+    // A person types this into a settings field, and people type trailing slashes.
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
+  }
 
   async getState(): Promise<StateSlot | null> {
     const res = await this.send('/api/state', { method: 'GET' });
@@ -211,7 +225,7 @@ export class ServerStore implements ShopStore {
   }
 
   private send(path: string, init: FetchInit): Promise<FetchResponse> {
-    return this.fetchImpl(path, { ...init, headers: this.headers(init.headers ?? {}) });
+    return this.fetchImpl(`${this.baseUrl}${path}`, { ...init, headers: this.headers(init.headers ?? {}) });
   }
 
   /** `?message=…&device=…`, for the log line the server keeps. */
@@ -285,9 +299,10 @@ export async function redeemSetupCode(
   code: string,
   deviceName: string,
   fetchImpl: FetchLike = globalFetch,
+  base = '',
 ): Promise<{ ok: true; token: string; deviceId: string } | { ok: false; reason: string }> {
   try {
-    const res = await fetchImpl('/api/device/token', {
+    const res = await fetchImpl(`${base}/api/device/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: code.trim().toUpperCase(), name: deviceName.trim() }),

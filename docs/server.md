@@ -88,6 +88,50 @@ not negotiable in any variant.
 | Pack and install | `ops/server-pack.sh` makes one tarball; `ops/server-install.sh` puts it in `/opt/freo`, installs a systemd unit, and keeps `data/` |
 | Backup | `ops/server-backup.sh` is a `tar` of `data/`. It has to be a cron job on the box, and the first restore has to be practised, not assumed |
 
+## The routes, as they are built
+
+`server/src/` is the source; `pnpm run build:server` turns it into the one file
+`server/freo-server.mjs` that actually runs. There are seven routes, and every one of
+them is a decision above rather than a new idea.
+
+| Route | Auth | What it does |
+| --- | --- | --- |
+| `OPTIONS /api/**` | none | the preflight every browser sends before it will put a workbook from `file://` |
+| `GET /api/health` | none | `{ok, store:"server", version}`. Unauthenticated on purpose: this is how a device finds out whether there is a server here at all, before it has any right to ask anything else |
+| `POST /api/device/token` | code or bearer | first device spends the console setup code and gets a token; after that an existing device introduces the next one. 200 for the code, 201 for an introduction |
+| `GET`, `PUT /api/state` | bearer | the shop document. `ETag` is the git blob sha; `If-Match` and `If-None-Match: *` are the compare-and-set |
+| `GET`, `PUT /api/exports/:kind` | bearer | the two workbooks, `location` and `future`, as bytes. Same compare-and-set, plus `Last-Modified` |
+| `GET /api/history?path=&limit=` | bearer | the write log, newest first. This is the folder watch's whole existence: one small request instead of a two-megabyte download |
+| anything else | none | the built app, with the SPA fallback. A path under `/assets/` that does not exist stays a 404, because HTML where JavaScript was asked for is a blank screen with no clue as to why |
+
+Six environment variables, all with defaults that work on a box in the shop:
+`FREO_PORT` (8787), `FREO_HOST` (0.0.0.0), `FREO_DATA` (`./data`), `FREO_STATIC`
+(`./dist`), `FREO_OPEN` (off), `FREO_BASE` (root).
+
+Four things the decisions above did not settle, settled here:
+
+- **Write metadata travels in the query string**, as `?message=&device=`, and unknown
+  parameters are ignored. The body is already the document, so the note about who
+  saved it and why has to go somewhere else, and a header is the wrong somewhere:
+  header values are bytes with no declared encoding, and a browser will not send
+  `saved — bays 3–6 ready` in one at all. Percent-encoded in a query parameter it
+  arrives exactly as typed, which is the difference between a write log the shop can
+  read and one that says `saved â€” bays`. Accepting unknown parameters is what lets a
+  newer app talk to an older box.
+- **A write is refused before it is parsed.** A state document over 8 MB, or a
+  workbook over 32 MB, is a mistake rather than a shop: today's largest workbook is
+  under a megabyte. An unparseable document is refused with 400 and the stored file is
+  left alone, because the alternative is a box that stores rubbish and then 404s on
+  the next save.
+- **`/api/history` answers with the current file when the log is behind it.** The
+  folder watch compares the sha in the first entry against the file in its own folder;
+  if the log ever lagged the file, the watch would call the two different forever and
+  republish the workbook on every tick. So the log is read, and if what is on disk is
+  newer than the top entry, that is reported as the first entry.
+- **A request the client hangs up on is logged as 499 and nothing else.** A phone that
+  gives up halfway through a save is a normal Tuesday, and a server that writes a
+  half-received file for it is not a server.
+
 ## The two honest warnings
 
 **HTTP on a LAN is not encrypted.** If the box is only reachable from the office
@@ -101,5 +145,9 @@ install script rather than buried here.
 phones and PCs, the paths in Settings, and the folder watches all have to be
 re-pointed at the new address, and the data in GitHub does not move by itself. The
 install script therefore does one extra thing: on first run with an empty `data/`, it
-offers to pull the current shop document and the two workbooks out of the repository
-so the new box starts with today's numbers, not an empty shop.
+prints the two commands that put the current shop document from the repository in
+place, so the new box can start with today's numbers instead of an empty shop. It
+prints them rather than running them, because that needs somebody's GitHub token and
+the shop's numbers should not pass through a script that is not the app. Nothing moves
+the two MYOB workbooks: they appear on the new box the first time the office PC writes
+them there, and until then the new server says so instead of serving an old file.

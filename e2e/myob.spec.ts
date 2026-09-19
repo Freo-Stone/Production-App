@@ -76,7 +76,14 @@ test.describe('the MYOB run', () => {
     // It has been off the cure for two days, and the row says when it came ready —
     // that is what tells the person keying it that this is not today's making.
     await expect(row).toContainText(/ready (yesterday|2 days ago)/);
-    await expect(page.getByRole('heading', { name: /This run —/ })).toBeVisible();
+    // The run heading names the day of the week, not just a date — a bare
+    // 18/09/2026 does not tell you whether that run has been keyed already. Which label
+    // it earns depends on the day the suite runs: the day after the shop's entry day,
+    // Friday's run is overdue, and saying so is the screen doing its job. So the label
+    // is allowed to be any of the four, and the weekday has to be there whichever it is.
+    await expect(page.locator('[data-myob-run]').first()).toContainText(
+      /(This run|Next run|Overdue|In \d+ weeks) — (Mon|Tue|Wed|Thu|Fri|Sat|Sun)/,
+    );
 
     // One line for the code, and it carries the quantity of the rack.
     await expect(lineFor(page, CODE)).toBeVisible();

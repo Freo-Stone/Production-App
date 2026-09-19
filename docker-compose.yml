@@ -1,0 +1,55 @@
+# Freo shop server, on the machine that runs it.
+#
+# One service, one port, one folder of data. The same single file the systemd install
+# runs (`server/freo-server.mjs`), so there is only one thing being tested.
+#
+#     docker compose up -d       start it, and start it again after a reboot
+#     docker compose logs -f     the console, including the setup code on first run
+#     docker compose down        stop it; ./data stays exactly where it is
+#
+# `build: .` means the image is made on this box from the files in this folder, which
+# is the honest way for a shop that has no container registry: the tarball from
+# `ops/server-pack.sh` contains everything this file needs.
+
+services:
+  freo:
+    build: .
+    image: freo-server:latest
+    container_name: freo
+
+    # One port for the app and the API. Change the left-hand number only if something
+    # else on this box already owns 8787 - the container always listens on 8787.
+    ports:
+      - '8787:8787'
+
+    # The shop's data, on the host, where a backup can reach it and where
+    # `docker compose down` cannot delete it.
+    volumes:
+      - ./data:/data
+
+    environment:
+      FREO_DATA: /data
+      FREO_STATIC: /app/dist
+      FREO_PORT: '8787'
+      # Leave this commented out unless the box is on a private office network and
+      # everybody understands what it buys. With it set, every /api route answers
+      # without a device key: no sign-in friction, and no protection either.
+      # FREO_OPEN: '1'
+
+    # `unless-stopped` rather than `always`: a box that comes back after a power cut
+    # should serve the shop again, and a server somebody stopped on purpose on Friday
+    # should still be stopped on Monday.
+    restart: unless-stopped
+
+    # A shop box is not a place for limits nobody measured, but it should not be able
+    # to take a whole machine down with it either. This is generous: the server holds
+    # one workbook in memory at a time, and the biggest one this shop has written is
+    # under a megabyte.
+    mem_limit: 512m
+
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

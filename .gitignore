@@ -25,3 +25,16 @@ __pycache__/  # the brand script, imported to redraw the vectors on its own
 
 # Scratch browser spec used to capture screenshots into shots/ (ignored).
 e2e/_shots.spec.ts
+
+# The server's single file and the pack output. Both are built (`pnpm run
+# build:server`, `ops/server-pack.sh`), and neither is the thing to read — the source
+# is under `server/src/`.
+server/freo-server.mjs
+server/freo-server.mjs.map
+dist-server/
+
+# If the server is ever started with the repository as its folder, this is where the
+# shop's numbers would land. Committing it would put the shop's stock and sales in the
+# repository, which is the thing the rules above exist to prevent.
+data/
+
