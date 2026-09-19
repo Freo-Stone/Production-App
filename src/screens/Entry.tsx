@@ -237,7 +237,7 @@ export function Entry() {
                 >
                   <Select
                     aria-label="Product"
-                    className="min-w-[16rem] flex-1"
+                    className="w-[min(30rem,58%)] min-w-[11rem] grow-0 shrink"
                     value={row.code}
                     onChange={(e) => patchRow(row.key, { code: e.target.value })}
                     options={[
